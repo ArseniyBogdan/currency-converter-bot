@@ -8,13 +8,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -23,18 +22,15 @@ import ru.spbstu.hsai.healthcheck.api.dto.HealthDTO;
 import ru.spbstu.hsai.healthcheck.api.dto.HealthStatus;
 import ru.spbstu.hsai.healthcheck.api.dto.VaultHealthResponse;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping
 @Slf4j
 public class HealthCheckController {
-    private final MongoTemplate mongoTemplate;
+    private final ReactiveMongoTemplate mongoTemplate;
     private final RabbitTemplate rabbitTemplate;
     private final WebClient webClientExchangeRates;
     private final WebClient webClientTelegram;
@@ -44,7 +40,7 @@ public class HealthCheckController {
 
     @Autowired
     public HealthCheckController(
-            MongoTemplate mongoTemplate,
+            ReactiveMongoTemplate mongoTemplate,
             RabbitTemplate rabbitTemplate,
             @Qualifier("exchangeRatesWebClient") WebClient webClientExchangeRates,
             @Qualifier("telegramWebClient") WebClient webClientTelegram,

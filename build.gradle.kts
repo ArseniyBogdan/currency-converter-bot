@@ -49,6 +49,7 @@ dependencies {
 
     // MongoDB
     implementation("org.springframework.data:spring-data-mongodb:4.2.3")
+    implementation("org.mongodb:mongodb-driver-reactivestreams:5.4.0")
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")

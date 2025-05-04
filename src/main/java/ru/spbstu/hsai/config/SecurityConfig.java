@@ -16,9 +16,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import reactor.core.publisher.Mono;
-import ru.spbstu.hsai.auth.ApiKeyAuthenticationToken;
-import ru.spbstu.hsai.auth.ApiKeyInitializer;
-import ru.spbstu.hsai.auth.ApiKeyService;
+import ru.spbstu.hsai.admin.ApiKeyAuthenticationToken;
+import ru.spbstu.hsai.admin.ApiKeyInitializer;
+import ru.spbstu.hsai.admin.service.ApiKeyService;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.auth;
+package ru.spbstu.hsai.admin;
 
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;

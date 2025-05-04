@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.auth.entities;
+package ru.spbstu.hsai.admin.entities;
 
 import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
@@ -14,7 +14,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 public class ApiKeyDBO {
     @Id
     private ObjectId id;
-    private Long adminId;
+    private ObjectId adminId;
     private String key;
     private Boolean revoked;
 }

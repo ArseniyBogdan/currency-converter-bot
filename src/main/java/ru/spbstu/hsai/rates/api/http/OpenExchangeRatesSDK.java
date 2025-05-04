@@ -18,36 +18,20 @@ import java.util.Map;
  */
 @Service
 @Slf4j
-public class RatesFetcher {
+public class OpenExchangeRatesSDK {
     private final WebClient webClient;
-    private final RatesService service;
     private final String apiKey;
 
-    public RatesFetcher(
+    public OpenExchangeRatesSDK(
             @Qualifier("telegramWebClient") WebClient webClient,
             RatesService service,
             @Value("${api_key}") String apiKey
     ){
         this.webClient = webClient;
-        this.service = service;
         this.apiKey = apiKey;
     }
 
-    @Scheduled(fixedRate = 3600000)
-    public void scheduleCurrencyUpdate() {
-        Mono.just(apiKey)
-                .flatMap(this::fetchCurrencies)
-                .flatMap(service::updateCurrencyData)
-                .then(Mono.just(apiKey))
-                .flatMap(this::fetchExchangeRates)
-                .flatMap(service::updateCurrencyPairs).subscribe(
-                        null,
-                        ex -> log.error("Currency update failed", ex),
-                        () -> log.info("Currency update completed")
-                );
-    }
-
-    private Mono<Map<String, String>> fetchCurrencies(String apiKey) {
+    public Mono<Map<String, String>> fetchCurrencies() {
         return webClient.get()
                 .uri("https://openexchangerates.org/api/currencies.json?app_id={key}", apiKey)
                 .retrieve()
@@ -55,7 +39,7 @@ public class RatesFetcher {
                 .retry(3);
     }
 
-    private Mono<ExchangeRatesDTO> fetchExchangeRates(String apiKey) {
+    public Mono<ExchangeRatesDTO> fetchExchangeRates() {
         return webClient.get()
                 .uri("https://openexchangerates.org/api/latest.json?app_id={key}", apiKey)
                 .retrieve()

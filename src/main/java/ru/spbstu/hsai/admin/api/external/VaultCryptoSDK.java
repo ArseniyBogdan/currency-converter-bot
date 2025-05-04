@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.auth.api.external;
+package ru.spbstu.hsai.admin.api.external;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -6,6 +6,7 @@ import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.Plaintext;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.spbstu.hsai.admin.CryptoSDK;
 
 /**
  * Сервис для шифрования,
@@ -14,7 +15,7 @@ import reactor.core.scheduler.Schedulers;
 
 @Service
 @RequiredArgsConstructor
-public class VaultCryptoSDK {
+public class VaultCryptoSDK implements CryptoSDK {
     private final VaultTemplate vaultTemplate;
 
     public Mono<String> encrypt(String plaintext) {

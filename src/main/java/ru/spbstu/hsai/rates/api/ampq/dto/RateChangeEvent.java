@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 /**
  * Событие изменения курса валютной пары,
@@ -41,5 +42,5 @@ public class RateChangeEvent {
 
     @JsonProperty("updated")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    private Timestamp updated;
+    private LocalDateTime updated;
 }

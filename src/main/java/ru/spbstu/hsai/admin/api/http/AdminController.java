@@ -11,7 +11,6 @@ import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.admin.api.http.dto.ObjectIdDTO;
 import ru.spbstu.hsai.admin.entities.ApiKey;
 import ru.spbstu.hsai.admin.service.ApiKeyService;
-import ru.spbstu.hsai.admin.api.external.TelegramSDK;
 import ru.spbstu.hsai.admin.api.http.dto.AdminDTO;
 import ru.spbstu.hsai.admin.api.http.dto.ApiKeyDTO;
 import ru.spbstu.hsai.admin.api.http.dto.CreateAdminRequest;

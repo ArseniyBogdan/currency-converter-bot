@@ -3,9 +3,14 @@ package ru.spbstu.hsai.rates.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import ru.spbstu.hsai.rates.api.ampq.UpdateCurrenciesSDK;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
 import ru.spbstu.hsai.rates.dao.CurrencyDAO;
@@ -15,8 +20,11 @@ import ru.spbstu.hsai.rates.entities.CurrencyPairDBO;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Сервис для обновления валютных курсов
@@ -28,6 +36,7 @@ public class RatesService {
     private final UpdateCurrenciesSDK updateCurrenciesSDK;
     private final CurrencyDAO currencyDAO;
     private final CurrencyPairDAO currencyPairDAO;
+    private final ReactiveMongoTemplate mongoTemplate;
 
     /**
      * Обновляет данные о валютах в MongoDB
@@ -37,86 +46,126 @@ public class RatesService {
      */
     public Mono<Void> updateCurrencyData(Map<String, String> currencies) {
         return Flux.fromIterable(currencies.entrySet())
-                .flatMap(entry -> currencyDAO.existsById(entry.getKey()).flatMap(exists -> {
-                            if (!exists) {
-                                CurrencyDBO currency = new CurrencyDBO();
-                                currency.setCode(entry.getKey());
-                                currency.setName(entry.getValue());
-                                currency.setUpdated(new Timestamp(System.currentTimeMillis()));
-                                // TODO тут надо настроить ссылки на друг друга
-                                return currencyDAO.save(currency).then();
-                            }
-                            return Mono.empty();
-                        })
-                ).then();
+                .flatMap(entry -> {
+                    CurrencyDBO newCurrency = new CurrencyDBO(
+                            entry.getKey(),
+                            entry.getValue(),
+                            LocalDateTime.now()
+                    );
+
+                    return currencyDAO.findByCode(entry.getKey())
+                            .switchIfEmpty(currencyDAO.save(newCurrency));
+                })
+                .then(createAllPossiblePairs());
     }
 
-    /**
-     * Обновляет курсы валютных пар в MongoDB на основе полученных данных
-     *
-     * @param response Ответ API с курсами валют
-     * @return Mono сигнализирующий о завершении операции
-     * @throws ArithmeticException при ошибках вычисления курсов
-     */
+    private Mono<Void> createAllPossiblePairs() {
+        return currencyDAO.findAll()
+                .collectList()
+                .zipWith(currencyPairDAO.findAll().collectList())
+                .flatMap(tuple -> {
+                    List<CurrencyDBO> currencies = tuple.getT1();
+                    List<CurrencyPairDBO> existingPairs = tuple.getT2();
+
+                    // Создаем Set для быстрого поиска существующих пар
+                    Set<Pair<String, String>> existingPairsSet = existingPairs.stream()
+                            .map(p -> Pair.of(p.getBaseCurrency(), p.getTargetCurrency()))
+                            .collect(Collectors.toSet());
+
+                    // Генерируем все возможные комбинации
+                    List<CurrencyPairDBO> newPairs = currencies.stream()
+                            .flatMap(base -> currencies.stream()
+                                    .filter(target -> !base.equals(target))
+                                    .map(target -> Pair.of(base.getCode(), target.getCode()))
+                            )
+                            .filter(pair -> !existingPairsSet.contains(pair))
+                            .map(pair -> new CurrencyPairDBO(
+                                    null,
+                                    pair.getLeft(),
+                                    pair.getRight(),
+                                    BigDecimal.ZERO,
+                                    LocalDateTime.now()
+                            ))
+                            .toList();
+
+                    return Flux.fromIterable(newPairs)
+                            .buffer(1000)
+                            .flatMap(batch -> currencyPairDAO.saveAll(batch).then())
+                            .then();
+                });
+    }
+
     public Mono<Void> updateCurrencyPairs(ExchangeRatesDTO response) {
+        Map<String, BigDecimal> rates = response.getRates();
+        log.info("Executing updateCurrencyPairs");
+
         return currencyPairDAO.findAll()
-                .flatMap(pair -> calculateNewRate(pair, response.getRates())
-                        .flatMap(newRate -> updatePairInDatabase(pair, newRate.getCurrentRate()))
-                        .flatMap(pairWithHistory ->
-                                sendUpdateNotification(
-                                        pairWithHistory.getLeft(),
-                                        pairWithHistory.getRight()
-                                )
-                        )
-                )
+                .flatMap(pair -> calculateCrossRate(pair, rates))
+                .buffer(500) // Пакетная обработка по 500 пар
+                .flatMap(batch -> {
+                    log.info("Another batch: {}", batch);
+                    return Flux.fromIterable(batch)
+                            .parallel()
+                            .runOn(Schedulers.parallel())
+                            .flatMap(this::processPairUpdate)
+                            .sequential();
+                })
                 .then();
     }
 
-    /**
-     * Вычисляет новый курс для валютной пары
-     *
-     * @param pair Обновляемая валютная пара
-     * @param rates Актуальные курсы валют к USD
-     * @return Mono с обновленной валютной парой
-     * @throws IllegalArgumentException при отсутствии необходимых курсов
-     */
-    private Mono<CurrencyPairDBO> calculateNewRate(CurrencyPairDBO pair, Map<String, BigDecimal> rates) {
-        String base = pair.getBaseCurrency().getCode();
-        String target = pair.getTargetCurrency().getCode();
+    private Mono<Pair<CurrencyPairDBO, BigDecimal>> calculateCrossRate(CurrencyPairDBO pair, Map<String, BigDecimal> rates) {
+        String base = pair.getBaseCurrency();
+        String target = pair.getTargetCurrency();
 
-        return Mono.fromCallable(() -> {
-            if ("USD".equals(base)) {
-                return rates.getOrDefault(target, pair.getCurrentRate());
-            }
+        return Mono.fromSupplier(() -> {
+            try {
+                BigDecimal baseRate = rates.getOrDefault(base, BigDecimal.ONE);
+                BigDecimal targetRate = rates.getOrDefault(target, BigDecimal.ONE);
 
-            BigDecimal baseRate = rates.get(base);
-            BigDecimal targetRate = rates.get(target);
-            if (baseRate == null || targetRate == null) {
+                return targetRate.divide(baseRate, 6, RoundingMode.HALF_UP);
+            } catch (ArithmeticException e) {
+                log.error("Error calculating rate for {}/{}: {}", base, target, e.getMessage());
                 return pair.getCurrentRate();
             }
-
-            return targetRate.divide(baseRate, 6, RoundingMode.HALF_UP);
         }).map(newRate -> {
+            BigDecimal oldRate = pair.getCurrentRate();
             pair.setCurrentRate(newRate);
-            pair.setUpdated(new Timestamp(System.currentTimeMillis()));
-            return pair;
+            pair.setUpdated(LocalDateTime.now());
+            return Pair.of(pair, oldRate);
         });
     }
 
-    /**
-     * Сохраняет обновленную валютную пару в MongoDB
-     *
-     * @param pair Старая валютная пара, новый курс
-     * @return Mono с сохраненной сущностью
-     */
-    private Mono<Pair<CurrencyPairDBO, BigDecimal>> updatePairInDatabase(CurrencyPairDBO pair, BigDecimal newRate) {
-        BigDecimal oldRate = pair.getCurrentRate();
-        pair.setCurrentRate(newRate);
-        pair.setUpdated(new Timestamp(System.currentTimeMillis()));
+    private Mono<Pair<CurrencyPairDBO, BigDecimal>> processPairUpdate(Pair<CurrencyPairDBO, BigDecimal> pair) {
+        BigDecimal oldRate = pair.getRight();
+        BigDecimal newRate = pair.getLeft().getCurrentRate();
+        String baseCurrency = pair.getLeft().getBaseCurrency();
+        String targetCurrency = pair.getLeft().getTargetCurrency();
 
-        return currencyPairDAO.save(pair)
+        Query query = new Query(Criteria
+                .where("baseCurrency").is(baseCurrency)
+                .and("targetCurrency").is(targetCurrency)
+        );
+
+        Update update = new Update()
+                .set("currentRate", newRate)
+                .set("updated", LocalDateTime.now());
+
+        return mongoTemplate.updateFirst(query, update, CurrencyPairDBO.class)
+                .flatMap(updateResult -> {
+                    if (updateResult.getMatchedCount() == 0){
+                        return Mono.error(new RuntimeException("Document not found"));
+                    }
+                    return mongoTemplate.findOne(query, CurrencyPairDBO.class);
+                })
                 .map(updated -> Pair.of(updated, oldRate))
-                .doOnSuccess(updated -> log.info("Updated pair: {}", updated.getLeft().getCurrencyPairId()));
+                .doOnNext(updated -> {
+                    log.debug("Updated {}/{}: {} -> {}",
+                            updated.getLeft().getBaseCurrency(),
+                            updated.getLeft().getTargetCurrency(),
+                            oldRate,
+                            updated.getLeft().getCurrentRate()
+                    );
+                });
     }
 
     /**
@@ -141,8 +190,8 @@ public class RatesService {
      * @param pair Обновленная валютная пара
      * @return Mono сигнализирующий о завершении операции
      */
-    private Mono<Void> sendUpdateNotification(CurrencyPairDBO pair, BigDecimal oldRate) {
-        return Mono.fromCallable(() -> calculateChangePercent(pair.getCurrentRate(), oldRate))
-                .flatMap(percent -> updateCurrenciesSDK.sendUpdateNotification(pair, oldRate, percent));
+    private Mono<Void> sendUpdateNotification(Pair<CurrencyPairDBO, BigDecimal> pair) {
+        return Mono.fromCallable(() -> calculateChangePercent(pair.getLeft().getCurrentRate(), pair.getRight()))
+                .flatMap(percent -> updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent));
     }
 }

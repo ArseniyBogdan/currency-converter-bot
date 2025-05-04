@@ -1,25 +1,30 @@
 package ru.spbstu.hsai.rates.entities;
 
 import jakarta.persistence.Id;
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import lombok.NoArgsConstructor;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 /**
  * Валютная пара
  */
 
 @Data
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 @Document(collection = "currency_pairs")
 public class CurrencyPairDBO {
     @Id
-    private Long currencyPairId;
-    private CurrencyDBO baseCurrency;
-    private CurrencyDBO targetCurrency;
+    @Field("_id")
+    private ObjectId currencyPairId;
+    private String baseCurrency;
+    private String targetCurrency;
     private BigDecimal currentRate;
-    private Timestamp updated;
+    private LocalDateTime updated;
 }

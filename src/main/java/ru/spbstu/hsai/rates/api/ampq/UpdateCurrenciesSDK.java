@@ -29,8 +29,8 @@ public class UpdateCurrenciesSDK {
                 rabbitTemplate.convertAndSend(
                         "currency-updates",
                         new RateChangeEvent(
-                                pair.getBaseCurrency().getCode(),
-                                pair.getTargetCurrency().getCode(),
+                                pair.getBaseCurrency(),
+                                pair.getTargetCurrency(),
                                 oldRate,
                                 pair.getCurrentRate(),
                                 changePercent,

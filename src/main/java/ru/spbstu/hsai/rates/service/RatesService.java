@@ -3,6 +3,7 @@ package ru.spbstu.hsai.rates.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -193,5 +194,10 @@ public class RatesService {
     private Mono<Void> sendUpdateNotification(Pair<CurrencyPairDBO, BigDecimal> pair) {
         return Mono.fromCallable(() -> calculateChangePercent(pair.getLeft().getCurrentRate(), pair.getRight()))
                 .flatMap(percent -> updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent));
+    }
+
+
+    public Mono<ObjectId> getCurrencyPairId(String baseCurrency, String targetCurrency){
+        return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency).map(CurrencyPairDBO::getCurrencyPairId);
     }
 }

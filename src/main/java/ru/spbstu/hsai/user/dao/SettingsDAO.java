@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 import ru.spbstu.hsai.user.entities.SettingsDBO;
 
 @Repository
-public interface SettingsDAO extends ReactiveCrudRepository<SettingsDBO, String> {
+public interface SettingsDAO extends ReactiveCrudRepository<SettingsDBO, Long> {
 }

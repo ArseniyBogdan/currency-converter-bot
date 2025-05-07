@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 import ru.spbstu.hsai.user.entities.UserDBO;
 
 @Repository
-public interface UserDAO extends ReactiveCrudRepository<UserDBO, String> {
+public interface UserDAO extends ReactiveCrudRepository<UserDBO, Long> {
 }

@@ -40,18 +40,6 @@ public class VaultConfig implements BeanFactoryPostProcessor {
         }
     }
 
-//    private VaultTemplate createVaultTemplate(Environment env) {
-//        // Получаем свойства из Environment
-//        String uri = env.getProperty("spring.cloud.vault.uri");
-//        int port = env.getProperty("spring.cloud.vault.port", Integer.class, 8200);
-//        String token = env.getProperty("spring.cloud.vault.token");
-//        String scheme = env.getProperty("spring.cloud.vault.scheme", "http");
-//
-//        VaultEndpoint endpoint = VaultEndpoint.create(uri, port);
-//        endpoint.setScheme(scheme);
-//        return new VaultTemplate(endpoint, new TokenAuthentication(token));
-//    }
-
     @Bean
     public static VaultTemplate vaultTemplate(Environment env) {
         String uri = env.getProperty("spring.cloud.vault.uri");

@@ -11,11 +11,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.repository.config.EnableReactiveMongoRepositories;
 
-import java.util.Collections;
-import java.util.List;
 
 @Configuration
-@EnableReactiveMongoRepositories(basePackages = "ru.spbstu.hsai.*.dao")
+@EnableReactiveMongoRepositories(basePackages = {
+        "ru.spbstu.hsai.*",
+})
 public class MongoConfig {
 
     @Bean
@@ -29,7 +29,7 @@ public class MongoConfig {
                         .applyConnectionString(new ConnectionString(uri))
                         .credential(MongoCredential.createCredential(
                                 username,
-                                "currency_bot",
+                                "admin",
                                 password.toCharArray()))
                         .build());
     }

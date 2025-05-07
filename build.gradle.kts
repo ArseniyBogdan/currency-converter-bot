@@ -22,9 +22,7 @@ dependencies {
     // Spring Framework
     implementation("org.springframework:spring-webflux")
     implementation("org.springframework:spring-context")
-//    implementation("org.springframework:spring-webmvc")
     implementation("org.springframework.data:spring-data-jpa:3.4.4")
-    implementation("org.springframework.data:spring-data-mongodb:4.4.4")
     implementation("org.mongodb:mongodb-jdbc:2.2.3")
     implementation("org.springframework.modulith:spring-modulith:1.3.4")
     implementation("org.springframework.amqp:spring-rabbit:3.2.4")
@@ -48,7 +46,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core:2.17.0")
 
     // MongoDB
-    implementation("org.springframework.data:spring-data-mongodb:4.2.3")
+    implementation("org.springframework.data:spring-data-mongodb:4.4.4")
     implementation("org.mongodb:mongodb-driver-reactivestreams:5.4.0")
 
     // Logging

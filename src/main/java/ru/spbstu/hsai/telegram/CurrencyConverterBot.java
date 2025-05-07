@@ -59,8 +59,9 @@ public class CurrencyConverterBot extends TelegramLongPollingBot {
                     }))
                     .onErrorResume(e -> {
                         // Обработка ошибок
+                        String errorMessage = e.getMessage();
                         log.error("Error processing message: {}", text, e);
-                        sendMessage(chatId, errorCommandReply);
+                        sendMessage(chatId, errorMessage);
                         return Mono.empty();
                     })
                     .subscribe(); // Важно: активируем выполнение цепочки

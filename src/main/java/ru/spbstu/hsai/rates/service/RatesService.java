@@ -200,4 +200,10 @@ public class RatesService {
     public Mono<ObjectId> getCurrencyPairId(String baseCurrency, String targetCurrency){
         return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency).map(CurrencyPairDBO::getCurrencyPairId);
     }
+
+    public Mono<Boolean> isCurrencyExists(String currencyCode){
+        return currencyDAO.findByCode(currencyCode)
+                .map(_ -> true)
+                .switchIfEmpty(Mono.just(false));
+    }
 }

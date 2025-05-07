@@ -1,0 +1,9 @@
+package ru.spbstu.hsai.user.dao;
+
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
+import ru.spbstu.hsai.user.entities.SettingsDBO;
+
+@Repository
+public interface SettingsDAO extends ReactiveCrudRepository<SettingsDBO, String> {
+}

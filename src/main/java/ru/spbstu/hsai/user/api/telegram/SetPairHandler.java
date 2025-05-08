@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.user.api;
+package ru.spbstu.hsai.user.api.telegram;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
 import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
-import ru.spbstu.hsai.user.service.UserService;
+import ru.spbstu.hsai.user.service.UserServiceImpl;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,7 +19,7 @@ public class SetPairHandler implements CommandHandler {
     private static final Pattern COMMAND_PATTERN =
             Pattern.compile("^/setpair\\s+([A-Z]{3})/([A-Z]{3})$", Pattern.CASE_INSENSITIVE);
 
-    private final UserService userService;
+    private final UserServiceImpl userService;
 
     @Value("${command.setpair}")
     private String commandSetHomeCurrencyReply;

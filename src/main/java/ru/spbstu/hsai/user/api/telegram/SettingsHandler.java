@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.user.api;
+package ru.spbstu.hsai.user.api.telegram;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,12 +7,12 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
-import ru.spbstu.hsai.user.service.UserService;
+import ru.spbstu.hsai.user.service.UserServiceImpl;
 
 @Component
 @RequiredArgsConstructor
 public class SettingsHandler implements CommandHandler {
-    private final UserService userService;
+    private final UserServiceImpl userService;
 
     @Value("${command.settings}")
     private String commandSettingsReply;

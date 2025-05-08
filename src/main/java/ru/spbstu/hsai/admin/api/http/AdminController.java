@@ -2,12 +2,16 @@ package ru.spbstu.hsai.admin.api.http;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.spbstu.hsai.admin.api.http.dto.BroadcastRequest;
+import ru.spbstu.hsai.admin.api.http.dto.BroadcastResponse;
 import ru.spbstu.hsai.admin.api.http.dto.ObjectIdDTO;
 import ru.spbstu.hsai.admin.entities.ApiKey;
 import ru.spbstu.hsai.admin.service.ApiKeyServiceImpl;
@@ -17,6 +21,9 @@ import ru.spbstu.hsai.admin.api.http.dto.CreateAdminRequest;
 import ru.spbstu.hsai.admin.entities.AdminDBO;
 import ru.spbstu.hsai.admin.service.AdminService;
 import ru.spbstu.hsai.rates.RatesFetcher;
+import ru.spbstu.hsai.telegram.CurrencyConverterBot;
+import ru.spbstu.hsai.user.UserDTO;
+import ru.spbstu.hsai.user.UserServiceSDK;
 
 import javax.validation.Valid;
 
@@ -24,17 +31,18 @@ import javax.validation.Valid;
 @RequestMapping("/users")
 @RequiredArgsConstructor
 public class AdminController {
-//    private final UserService userService;
+    private final UserServiceSDK userService;
     private final AdminService adminService;
     private final ApiKeyServiceImpl apiKeyService;
     private final RatesFetcher ratesFetcher;
+    private final CurrencyConverterBot bot;
 //    private final TelegramSDK telegramSDK;
 
     // Получение списка пользователей
-//    @GetMapping
-//    public Flux<UserDTO> getAllUsers() {
-//        return userService.getAllUsers();
-//    }
+    @GetMapping
+    public Flux<UserDTO> getAllUsers() {
+        return userService.getAllUsers();
+    }
 
     // Получение списка пользователей
     @GetMapping("/admin")
@@ -50,11 +58,11 @@ public class AdminController {
         return adminService.createAdmin(request.getName(), request.getSurname()).map(this::mapToAdminDTO);
     }
 
-    // Получение списка пользователей
-//    @GetMapping("/{userId}")
-//    public Flux<UserDTO> getUserByChatId() {
-//        return userService.getUserByChatId();
-//    }
+    // Получение пользователя по chatId
+    @GetMapping("/{chatId}")
+    public Mono<UserDTO> getUserByChatId(@PathVariable("chatId") Long chatId) {
+        return userService.getUserByChatId(chatId);
+    }
 
     // Генерация нового API-ключа
     @PostMapping("/keys/generate")
@@ -78,10 +86,22 @@ public class AdminController {
     }
 
     // Рассылка уведомлений
-//    @PostMapping("/notify")
-//    public Mono<Void> sendGlobalNotification(@RequestBody String request) {
-//        return telegramSDK.broadcastNotification(request);
-//    }
+    @PostMapping("/notify")
+    public Mono<BroadcastResponse> sendGlobalNotification(@RequestBody BroadcastRequest request) {
+        String broadcastMessage = request.getMessage();
+        return getAllUsers().flatMap(userDBO ->
+            Mono.just(bot.sendMessage(userDBO.getChatId(), broadcastMessage))
+        ).collect(
+                () -> new BroadcastResponse(0,0),
+                (response, result) -> {
+                    if (result) {
+                        response.setSentCount(response.getSentCount() + 1);
+                    } else {
+                        response.setFailedCount(response.getFailedCount() + 1);
+                    }
+                }
+        );
+    }
 
 
     private ApiKeyDTO mapToApiKeyDTO(ApiKey apiKey){

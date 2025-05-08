@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.user.api;
+package ru.spbstu.hsai.user.api.telegram;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,12 +8,12 @@ import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
 import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
-import ru.spbstu.hsai.user.service.UserService;
+import ru.spbstu.hsai.user.service.UserServiceImpl;
 
 @Component
 @RequiredArgsConstructor
 public class StartCommandHandler implements CommandHandler {
-    private final UserService userService;
+    private final UserServiceImpl userService;
 
     @Value("${command.start}")
     private String commandStartReply;

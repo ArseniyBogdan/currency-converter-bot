@@ -73,15 +73,17 @@ public class CurrencyConverterBot extends TelegramLongPollingBot {
         }
     }
 
-    private void sendMessage(long chatId, String text) {
+    public boolean sendMessage(long chatId, String text) {
         SendMessage message = new SendMessage();
         message.setChatId(chatId);
         message.setText(text);
         message.setParseMode("HTML");
         try{
             execute(message);
+            return true;
         } catch (TelegramApiException e){
             log.error("Error while send message to user", e);
+            return false;
         }
     }
 

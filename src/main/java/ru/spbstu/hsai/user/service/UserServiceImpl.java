@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
-import ru.spbstu.hsai.rates.RatesService;
+import ru.spbstu.hsai.user.RatesService;
 import ru.spbstu.hsai.user.dao.SettingsDAO;
 import ru.spbstu.hsai.user.dao.UserDAO;
 import ru.spbstu.hsai.user.entities.SettingsDBO;

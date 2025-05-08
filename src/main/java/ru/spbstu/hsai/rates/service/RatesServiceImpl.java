@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-import ru.spbstu.hsai.rates.RatesService;
+import ru.spbstu.hsai.user.RatesService;
 import ru.spbstu.hsai.rates.api.ampq.UpdateCurrenciesSDK;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
 import ru.spbstu.hsai.rates.dao.CurrencyDAO;
@@ -212,5 +212,13 @@ public class RatesServiceImpl implements RatesService {
         return currencyPairDAO.findById(pairId).map( pair ->
                 pair.getBaseCurrency() + "/" + pair.getTargetCurrency()
         );
+    }
+
+    public Flux<CurrencyDBO> getAllCurrencies(){
+        return currencyDAO.findAll();
+    }
+
+    public Mono<CurrencyPairDBO> getExchangeRate(String baseCurrency, String targetCurrency){
+        return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency);
     }
 }

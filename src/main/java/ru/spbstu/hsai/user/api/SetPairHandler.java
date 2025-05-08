@@ -15,17 +15,17 @@ import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
-public class SetHomeCurrencyHandler implements CommandHandler {
+public class SetPairHandler implements CommandHandler {
     private static final Pattern COMMAND_PATTERN =
-            Pattern.compile("^/sethome\\s+([A-Z]{3})$", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("^/setpair\\s+([A-Z]{3})/([A-Z]{3})$", Pattern.CASE_INSENSITIVE);
 
     private final UserService userService;
 
-    @Value("${command.sethome}")
+    @Value("${command.setpair}")
     private String commandSetHomeCurrencyReply;
 
     @Override
-    @BotCommand("/sethome")
+    @BotCommand("/setpair")
     public Mono<String> handle(Message message) {
         return Mono.justOrEmpty(message.getText())
                 .flatMap(commandText -> {
@@ -34,15 +34,23 @@ public class SetHomeCurrencyHandler implements CommandHandler {
                     // Проверка формата команды
                     if (!matcher.matches()) {
                         return Mono.error(new CCBException(
-                                "❌ Неверный формат команды. Используйте: <code>/sethome &lt;ВАЛЮТА&gt;</code>\n" +
-                                        "Пример: <code>/sethome RUB</code>"
+                                "❌ Неверный формат команды. Используйте: <code>/setpair &lt;ВАЛЮТА1&gt/&lt;ВАЛЮТА2&gt;</code>\n" +
+                                        "Пример: <code>/setpair RUB</code>"
                         ));
                     }
 
-                    String currency = matcher.group(1).toUpperCase();
+                    String currencyBase = matcher.group(1).toUpperCase();
+                    String currencyTarget = matcher.group(2).toUpperCase();
+
+                    // Проверка на одинаковые валюты
+                    if (currencyBase.equals(currencyTarget)) {
+                        return Mono.error(new CCBException(
+                                "❌ Валюты в паре должны быть разными"
+                        ));
+                    }
 
                     // Проверка существования валюты
-                    return userService.setHomeCurrency(message.getChatId(), currency).thenReturn(commandSetHomeCurrencyReply);
+                    return userService.setPair(message.getChatId(), currencyBase, currencyTarget).thenReturn(commandSetHomeCurrencyReply);
                 });
     }
 }

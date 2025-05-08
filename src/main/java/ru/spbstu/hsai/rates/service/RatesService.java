@@ -206,4 +206,10 @@ public class RatesService {
                 .map(_ -> true)
                 .switchIfEmpty(Mono.just(false));
     }
+
+    public Mono<String> getDefaultPairString(ObjectId pairId){
+        return currencyPairDAO.findById(pairId).map( pair ->
+                pair.getBaseCurrency() + "/" + pair.getTargetCurrency()
+        );
+    }
 }

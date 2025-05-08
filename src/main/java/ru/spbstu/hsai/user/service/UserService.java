@@ -8,12 +8,12 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
-import ru.spbstu.hsai.rates.entities.CurrencyPairDBO;
 import ru.spbstu.hsai.rates.service.RatesService;
 import ru.spbstu.hsai.user.dao.SettingsDAO;
 import ru.spbstu.hsai.user.dao.UserDAO;
 import ru.spbstu.hsai.user.entities.SettingsDBO;
 import ru.spbstu.hsai.user.entities.UserDBO;
+import ru.spbstu.hsai.user.entities.UserSettings;
 
 import java.time.LocalDateTime;
 
@@ -61,6 +61,38 @@ public class UserService {
                     // Обновление домашней валюты
                     return mongoTemplate.updateFirst(query, update, SettingsDBO.class).then();
                 });
+    }
+
+    public Mono<Void> setPair(Long chatId, String baseCurrencyCode, String targetCurrencyCode){
+        // Проверка существования валюты
+        return RatesService.getCurrencyPairId(baseCurrencyCode, targetCurrencyCode).switchIfEmpty(
+                Mono.error(new CCBException(
+                        "Валютная пара " + baseCurrencyCode + "/" + targetCurrencyCode + " не поддерживается\n" +
+                                "Список валют: /currencies"
+                ))
+        ).flatMap(pairId -> {
+            Query query = new Query(Criteria
+                    .where("chatId").is(chatId)
+            );
+            Update update = new Update()
+                    .set("currencyPairId", pairId);
+
+            return mongoTemplate.updateFirst(query, update, SettingsDBO.class).then();
+        });
+    }
+
+    public Mono<UserSettings> getUserSettings(Long chatId){
+        return settingsDAO.findByChatId(chatId)
+                .switchIfEmpty(Mono.error(new CCBException("Настроек пользователя не было найдено")))
+                .flatMap(settings ->
+                    RatesService.getDefaultPairString(settings.getCurrencyPairId())
+                            .map(currencyPair ->
+                                    new UserSettings(
+                                            settings.getHomeCurrencyCode(),
+                                            currencyPair
+                                    )
+                            )
+        );
     }
 
 }

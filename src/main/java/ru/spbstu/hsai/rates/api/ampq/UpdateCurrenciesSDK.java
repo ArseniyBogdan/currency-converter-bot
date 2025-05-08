@@ -27,7 +27,8 @@ public class UpdateCurrenciesSDK {
     public Mono<Void> sendUpdateNotification(CurrencyPairDBO pair, BigDecimal oldRate, BigDecimal changePercent) {
         return Mono.fromRunnable(() ->
                 rabbitTemplate.convertAndSend(
-                        "currency-updates",
+                        "currency-converter-bot",
+                        "rates.update",
                         new RateChangeEvent(
                                 pair.getBaseCurrency(),
                                 pair.getTargetCurrency(),

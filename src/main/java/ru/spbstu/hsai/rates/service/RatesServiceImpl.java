@@ -112,6 +112,7 @@ public class RatesServiceImpl implements RatesService {
                             .flatMap(this::processPairUpdate)
                             .sequential();
                 })
+                .flatMap(this::sendUpdateNotification)
                 .then();
     }
 
@@ -194,7 +195,12 @@ public class RatesServiceImpl implements RatesService {
      */
     private Mono<Void> sendUpdateNotification(Pair<CurrencyPairDBO, BigDecimal> pair) {
         return Mono.fromCallable(() -> calculateChangePercent(pair.getLeft().getCurrentRate(), pair.getRight()))
-                .flatMap(percent -> updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent));
+                .flatMap(percent -> {
+                    if (percent != null){
+                        updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent);
+                    }
+                    return Mono.empty();
+                });
     }
 
 

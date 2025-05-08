@@ -1,4 +1,4 @@
-package ru.spbstu.hsai.user.entities;
+package ru.spbstu.hsai.user;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

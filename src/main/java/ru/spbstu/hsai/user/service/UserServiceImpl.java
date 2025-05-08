@@ -13,13 +13,13 @@ import ru.spbstu.hsai.user.dao.SettingsDAO;
 import ru.spbstu.hsai.user.dao.UserDAO;
 import ru.spbstu.hsai.user.entities.SettingsDBO;
 import ru.spbstu.hsai.user.entities.UserDBO;
-import ru.spbstu.hsai.user.entities.UserSettings;
+import ru.spbstu.hsai.user.UserSettings;
 
 import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserServiceImpl {
     private final UserDAO userDAO;
     private final SettingsDAO settingsDAO;
     private final RatesService ratesService;

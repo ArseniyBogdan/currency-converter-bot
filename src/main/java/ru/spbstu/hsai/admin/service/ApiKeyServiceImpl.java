@@ -16,7 +16,7 @@ import java.util.UUID;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ApiKeyService {
+public class ApiKeyServiceImpl implements ru.spbstu.hsai.admin.ApiKeyService {
     private final AdminService adminService;
     private final CryptoSDK cryptoSDK;
     private final ApiKeyDAO apiKeyDAO;

@@ -10,7 +10,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.admin.api.http.dto.ObjectIdDTO;
 import ru.spbstu.hsai.admin.entities.ApiKey;
-import ru.spbstu.hsai.admin.service.ApiKeyService;
+import ru.spbstu.hsai.admin.service.ApiKeyServiceImpl;
 import ru.spbstu.hsai.admin.api.http.dto.AdminDTO;
 import ru.spbstu.hsai.admin.api.http.dto.ApiKeyDTO;
 import ru.spbstu.hsai.admin.api.http.dto.CreateAdminRequest;
@@ -26,7 +26,7 @@ import javax.validation.Valid;
 public class AdminController {
 //    private final UserService userService;
     private final AdminService adminService;
-    private final ApiKeyService apiKeyService;
+    private final ApiKeyServiceImpl apiKeyService;
     private final RatesFetcher ratesFetcher;
 //    private final TelegramSDK telegramSDK;
 

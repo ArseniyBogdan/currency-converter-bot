@@ -18,7 +18,7 @@ import org.springframework.security.web.server.authentication.AuthenticationWebF
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.admin.ApiKeyAuthenticationToken;
 import ru.spbstu.hsai.admin.ApiKeyInitializer;
-import ru.spbstu.hsai.admin.service.ApiKeyService;
+import ru.spbstu.hsai.admin.ApiKeyService;
 
 import java.util.List;
 

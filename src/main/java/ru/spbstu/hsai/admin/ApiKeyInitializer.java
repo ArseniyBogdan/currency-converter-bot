@@ -7,7 +7,7 @@ import reactor.core.publisher.Flux;
 import ru.spbstu.hsai.admin.dao.ApiKeyDAO;
 import ru.spbstu.hsai.admin.entities.ApiKey;
 import ru.spbstu.hsai.admin.service.AdminService;
-import ru.spbstu.hsai.admin.service.ApiKeyService;
+import ru.spbstu.hsai.admin.service.ApiKeyServiceImpl;
 
 /**
  * Инициализация API-ключей при первом запуске,
@@ -19,7 +19,7 @@ import ru.spbstu.hsai.admin.service.ApiKeyService;
 public class ApiKeyInitializer {
 
     private final ApiKeyDAO apiKeyDAO;
-    private final ApiKeyService apiKeyService;
+    private final ApiKeyServiceImpl apiKeyService;
     private final AdminService adminService;
 
     public void run() {

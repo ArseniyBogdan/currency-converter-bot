@@ -1,13 +1,11 @@
 package ru.spbstu.hsai.healthcheck.api;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.vault.core.VaultTemplate;
@@ -36,7 +34,7 @@ public class HealthCheckController {
     private final WebClient webClientTelegram;
     private final VaultTemplate vaultTemplate;
 
-    @Value("${open_exchange_rates_token}") String openExchangeRatesToken;
+    @Value("${api_key}") String openExchangeRatesToken;
 
     @Autowired
     public HealthCheckController(
@@ -138,22 +136,20 @@ public class HealthCheckController {
     }
 
     private Mono<Boolean> checkOpenExchangeRates() {
-        return Mono.fromCallable(() -> {
-                    try {
-//                      return webClientTelegram.get()
-//                              .uri("/latest.json?app_id={apiKey}", openExchangeRatesToken)
-//                              .retrieve()
-//                              .toBodilessEntity()
-//                              .map(response -> response.getStatusCode().is2xxSuccessful())
-//                              .onErrorReturn(false)
-//                              .block(Duration.ofSeconds(5));
-                        return true;
-                    } catch (Exception e) {
-                        log.error("OpenExchangeRates check failed", e);
-                        return false;
+        return webClientExchangeRates.get()
+                .uri("/latest.json?app_id={apiKey}", openExchangeRatesToken)
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is2xxSuccessful()) {
+                        return Mono.just(true);
+                    } else {
+                        log.error("OpenExchangeRates API error. Status: {}", response.statusCode());
+                        return Mono.just(false);
                     }
                 })
-                .subscribeOn(Schedulers.boundedElastic());
+                .onErrorResume(e -> {
+                    log.error("OpenExchangeRates check failed", e);
+                    return Mono.just(false);
+                });
     }
 
     private Mono<Boolean> checkTelegramAPI() {

@@ -4,12 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
-import ru.spbstu.hsai.rates.service.RatesService;
+import ru.spbstu.hsai.rates.service.RatesServiceImpl;
 
 import java.util.Map;
 
@@ -24,7 +23,7 @@ public class OpenExchangeRatesSDK {
 
     public OpenExchangeRatesSDK(
             @Qualifier("telegramWebClient") WebClient webClient,
-            RatesService service,
+            RatesServiceImpl service,
             @Value("${api_key}") String apiKey
     ){
         this.webClient = webClient;

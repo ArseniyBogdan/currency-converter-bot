@@ -3,6 +3,7 @@ package ru.spbstu.hsai.rates.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.spbstu.hsai.rates.RatesService;
 import ru.spbstu.hsai.rates.api.ampq.UpdateCurrenciesSDK;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
 import ru.spbstu.hsai.rates.dao.CurrencyDAO;
@@ -32,7 +34,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class RatesService {
+public class RatesServiceImpl implements RatesService {
     private final UpdateCurrenciesSDK updateCurrenciesSDK;
     private final CurrencyDAO currencyDAO;
     private final CurrencyPairDAO currencyPairDAO;
@@ -193,5 +195,22 @@ public class RatesService {
     private Mono<Void> sendUpdateNotification(Pair<CurrencyPairDBO, BigDecimal> pair) {
         return Mono.fromCallable(() -> calculateChangePercent(pair.getLeft().getCurrentRate(), pair.getRight()))
                 .flatMap(percent -> updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent));
+    }
+
+
+    public Mono<ObjectId> getCurrencyPairId(String baseCurrency, String targetCurrency){
+        return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency).map(CurrencyPairDBO::getCurrencyPairId);
+    }
+
+    public Mono<Boolean> isCurrencyExists(String currencyCode){
+        return currencyDAO.findByCode(currencyCode)
+                .map(_ -> true)
+                .switchIfEmpty(Mono.just(false));
+    }
+
+    public Mono<String> getDefaultPairString(ObjectId pairId){
+        return currencyPairDAO.findById(pairId).map( pair ->
+                pair.getBaseCurrency() + "/" + pair.getTargetCurrency()
+        );
     }
 }

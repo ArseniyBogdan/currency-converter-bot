@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.spbstu.hsai.rates.RatesService;
 import ru.spbstu.hsai.rates.api.ampq.UpdateCurrenciesSDK;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
 import ru.spbstu.hsai.rates.dao.CurrencyDAO;
@@ -33,7 +34,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class RatesService {
+public class RatesServiceImpl implements RatesService {
     private final UpdateCurrenciesSDK updateCurrenciesSDK;
     private final CurrencyDAO currencyDAO;
     private final CurrencyPairDAO currencyPairDAO;

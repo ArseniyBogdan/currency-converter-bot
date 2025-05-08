@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
-import ru.spbstu.hsai.rates.service.RatesService;
+import ru.spbstu.hsai.rates.RatesService;
 import ru.spbstu.hsai.user.dao.SettingsDAO;
 import ru.spbstu.hsai.user.dao.UserDAO;
 import ru.spbstu.hsai.user.entities.SettingsDBO;
@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
 public class UserService {
     private final UserDAO userDAO;
     private final SettingsDAO settingsDAO;
-    private final RatesService RatesService;
+    private final RatesService ratesService;
     private final ReactiveMongoTemplate mongoTemplate;
 
     public Mono<Void> registerUser(Long chatId){
@@ -34,7 +34,7 @@ public class UserService {
                 ))
                 .then(settingsDAO.findByChatId(chatId))
                 .switchIfEmpty(
-                        RatesService.getCurrencyPairId("RUB", "USD").map(pairId ->
+                        ratesService.getCurrencyPairId("RUB", "USD").map(pairId ->
                                 new SettingsDBO(
                                         chatId, "RUB", pairId
                                 )
@@ -49,7 +49,7 @@ public class UserService {
         Update update = new Update()
                 .set("homeCurrencyCode", currencyCode);
         // Проверка существования валюты
-        return RatesService.isCurrencyExists(currencyCode)
+        return ratesService.isCurrencyExists(currencyCode)
                 .flatMap(isValid -> {
                     if (!isValid) {
                         return Mono.error(new CCBException(
@@ -65,7 +65,7 @@ public class UserService {
 
     public Mono<Void> setPair(Long chatId, String baseCurrencyCode, String targetCurrencyCode){
         // Проверка существования валюты
-        return RatesService.getCurrencyPairId(baseCurrencyCode, targetCurrencyCode).switchIfEmpty(
+        return ratesService.getCurrencyPairId(baseCurrencyCode, targetCurrencyCode).switchIfEmpty(
                 Mono.error(new CCBException(
                         "Валютная пара " + baseCurrencyCode + "/" + targetCurrencyCode + " не поддерживается\n" +
                                 "Список валют: /currencies"
@@ -85,7 +85,7 @@ public class UserService {
         return settingsDAO.findByChatId(chatId)
                 .switchIfEmpty(Mono.error(new CCBException("Настроек пользователя не было найдено")))
                 .flatMap(settings ->
-                    RatesService.getDefaultPairString(settings.getCurrencyPairId())
+                        ratesService.getDefaultPairString(settings.getCurrencyPairId())
                             .map(currencyPair ->
                                     new UserSettings(
                                             settings.getHomeCurrencyCode(),

@@ -5,10 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
 import reactor.util.retry.Retry;
 import ru.spbstu.hsai.rates.api.http.OpenExchangeRatesSDK;
-import ru.spbstu.hsai.rates.service.RatesService;
+import ru.spbstu.hsai.rates.service.RatesServiceImpl;
 
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 public class RatesFetcher {
-    private final RatesService service;
+    private final RatesServiceImpl service;
     private final OpenExchangeRatesSDK openExchangeRatesSDK;
 
     private static final String UPDATE_JOB_KEY = "currencyUpdateJob";

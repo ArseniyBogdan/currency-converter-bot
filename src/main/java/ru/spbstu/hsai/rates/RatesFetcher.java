@@ -23,10 +23,11 @@ public class RatesFetcher {
     private final ConcurrentHashMap<String, Boolean> activeJobs = new ConcurrentHashMap<>();
 
     @Scheduled(cron = "0 0 * * * *") // Каждый час в 00 минут
-    public Mono<Void> scheduleCurrencyUpdate() {
-        return executeCurrencyUpdate()
+    public void scheduleCurrencyUpdate() {
+        executeCurrencyUpdate()
                 .retryWhen(Retry.fixedDelay(3, Duration.ofSeconds(1)))
-                .timeout(Duration.ofMinutes(10));
+                .timeout(Duration.ofMinutes(10))
+                .subscribe();
     }
 
     public Mono<Void> executeCurrencyUpdate() {

@@ -197,7 +197,7 @@ public class RatesServiceImpl implements RatesService, RatesForMathService {
         return Mono.fromCallable(() -> calculateChangePercent(pair.getLeft().getCurrentRate(), pair.getRight()))
                 .flatMap(percent -> {
                     if (percent != null){
-                        updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent);
+                        return updateCurrenciesSDK.sendUpdateNotification(pair.getLeft(), pair.getRight(), percent);
                     }
                     return Mono.empty();
                 });

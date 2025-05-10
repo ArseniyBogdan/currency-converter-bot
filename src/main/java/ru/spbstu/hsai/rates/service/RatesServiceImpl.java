@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import ru.spbstu.hsai.mathcurr.RatesForMathService;
 import ru.spbstu.hsai.user.RatesService;
 import ru.spbstu.hsai.rates.api.ampq.UpdateCurrenciesSDK;
 import ru.spbstu.hsai.rates.api.http.dto.ExchangeRatesDTO;
@@ -34,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class RatesServiceImpl implements RatesService {
+public class RatesServiceImpl implements RatesService, RatesForMathService {
     private final UpdateCurrenciesSDK updateCurrenciesSDK;
     private final CurrencyDAO currencyDAO;
     private final CurrencyPairDAO currencyPairDAO;
@@ -77,7 +78,6 @@ public class RatesServiceImpl implements RatesService {
                     // Генерируем все возможные комбинации
                     List<CurrencyPairDBO> newPairs = currencies.stream()
                             .flatMap(base -> currencies.stream()
-                                    .filter(target -> !base.equals(target))
                                     .map(target -> Pair.of(base.getCode(), target.getCode()))
                             )
                             .filter(pair -> !existingPairsSet.contains(pair))
@@ -226,5 +226,9 @@ public class RatesServiceImpl implements RatesService {
 
     public Mono<CurrencyPairDBO> getExchangeRate(String baseCurrency, String targetCurrency){
         return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency);
+    }
+
+    public Mono<BigDecimal> getBigDecimalExchangeRate(String baseCurrency, String targetCurrency){
+        return currencyPairDAO.findByBaseCurrencyAndTargetCurrency(baseCurrency, targetCurrency).map(CurrencyPairDBO::getCurrentRate);
     }
 }

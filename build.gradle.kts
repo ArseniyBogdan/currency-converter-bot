@@ -66,6 +66,9 @@ dependencies {
     testImplementation("org.testcontainers:mongodb")
     testImplementation("org.springframework:spring-test")
     implementation("org.springframework.modulith:spring-modulith-test:1.3.4")
+
+    // For calculating currencies
+    implementation("net.objecthunter:exp4j:0.4.8")
 }
 
 

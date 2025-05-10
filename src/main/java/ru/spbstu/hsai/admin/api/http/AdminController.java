@@ -82,7 +82,8 @@ public class AdminController {
 
     @PostMapping("/currency/refresh")
     public Mono<Void> forceCurrencyUpdate() {
-        return ratesFetcher.scheduleCurrencyUpdate();
+        ratesFetcher.scheduleCurrencyUpdate();
+        return Mono.empty();
     }
 
     // Рассылка уведомлений

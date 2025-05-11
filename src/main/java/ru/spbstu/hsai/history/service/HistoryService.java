@@ -45,13 +45,22 @@ public class HistoryService {
         if (currencyOrPair != null) {
             if (currencyOrPair.contains("/")) {
                 // Фильтрация по валютной паре
-                query = query.filter(entry ->
-                        currencyOrPair.equalsIgnoreCase(entry.getCurrencyCode())
+                query = query.filter(entry -> {
+                        if (entry.getCurrencyCode() == null) {
+                            return false;
+                        }
+                        return currencyOrPair.equalsIgnoreCase(entry.getCurrencyCode());
+                    }
                 );
             } else {
                 // Фильтрация по отдельной валюте
                 query = query.filter(entry ->
-                        entry.getCurrencyCode().contains(currencyOrPair)
+                    {
+                        if (entry.getCurrencyCode() == null) {
+                            return false;
+                        }
+                        return entry.getCurrencyCode().contains(currencyOrPair);
+                    }
                 );
             }
         }

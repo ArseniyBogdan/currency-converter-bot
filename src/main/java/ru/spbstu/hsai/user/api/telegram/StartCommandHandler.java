@@ -10,6 +10,9 @@ import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
 import ru.spbstu.hsai.user.service.UserServiceImpl;
 
+/**
+ * Обработчик команды /start для получения списка доступных валют
+ */
 @Component
 @RequiredArgsConstructor
 public class StartCommandHandler implements CommandHandler {
@@ -18,6 +21,12 @@ public class StartCommandHandler implements CommandHandler {
     @Value("${command.start}")
     private String commandStartReply;
 
+    /**
+     * Обрабатывает команду /start, ыводя инструкцию пользователя
+     *
+     * @param message входящее сообщение от пользователя
+     * @return Mono<String> с инструкцией пользователя
+     */
     @Override
     @BotCommand("/start")
     public Mono<String> handle(Message message) {

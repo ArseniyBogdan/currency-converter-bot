@@ -22,6 +22,7 @@ dependencies {
     // Spring Framework
     implementation("org.springframework:spring-webflux")
     implementation("org.springframework:spring-context")
+    implementation("org.springframework:spring-core")
     implementation("org.springframework.data:spring-data-jpa:3.4.4")
     implementation("org.mongodb:mongodb-jdbc:2.2.3")
     implementation("org.springframework.modulith:spring-modulith:1.3.5")
@@ -53,6 +54,7 @@ dependencies {
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.20.0")
+    implementation("org.apache.logging.log4j:log4j-core:2.20.0")
 
     // Lombok
     compileOnly("org.projectlombok:lombok:1.18.30")
@@ -103,7 +105,7 @@ tasks.register("fatJar", Jar::class) {
         .map {
             if (it.isDirectory) it else zipTree(it).matching {
                 // Исключаем файлы цифровых подписей
-                exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+                exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA", "**/Log4j2Plugins.dat")
             }
         })
     with(tasks.jar.get() as CopySpec)

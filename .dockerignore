@@ -1,0 +1,11 @@
+.env
+vault
+.git
+.gitignore
+.idea
+*.md
+Dockerfile
+docker-compose.yml
+gradle*
+out
+*.iml

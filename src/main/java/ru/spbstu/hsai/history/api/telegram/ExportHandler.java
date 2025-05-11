@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.exceptions.CCBException;
+import ru.spbstu.hsai.history.HistorySDK;
 import ru.spbstu.hsai.history.service.CSVExporter;
 import ru.spbstu.hsai.history.service.HistoryService;
 import ru.spbstu.hsai.telegram.BotCommand;
@@ -24,20 +25,39 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Обработчик команды /clear_history для экспорта истории
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ExportHandler implements CommandHandler {
-
+    private final HistorySDK historySDK;
     private final HistoryService historyService;
     private final CSVExporter csvExporter;
     private final CurrencyConverterBot bot;
 
+    @Value("${command.export.success}")
+    private String successMessage;
+
     @Value("${command.export.error}")
     private String errorMessage;
 
+    @Value("${command.export.error.parameters}")
+    private String errorCountParameters;
+
+    @Value("${command.export.error.date.format}")
+    private String errorDateFormat;
+
+    /**
+     * Обрабатывает команду /export, производит экспорт истории в .csv файл
+     *
+     * @param message входящее сообщение от пользователя
+     * @return Mono<String> с результатом формирования файла или ошибку (после отдельно отправляется файл)
+     */
     @Override
     @BotCommand("/export")
     public Mono<String> handle(Message message) {
@@ -45,7 +65,10 @@ public class ExportHandler implements CommandHandler {
                 .flatMap(commandText -> processExportCommand(
                         message.getChatId(),
                         commandText.split("\\s+")
-                ))
+                )).map(result -> {
+                    saveHistory(message.getChatId(), message.getText(), result);
+                    return result;
+                })
                 .onErrorResume(e -> handleError(message.getChatId(), e));
     }
 
@@ -60,7 +83,7 @@ public class ExportHandler implements CommandHandler {
                 .collectList()
                 .flatMap(csvExporter::exportToCSV)
                 .flatMap(file -> sendFileToUser(chatId, file))
-                .thenReturn("✅ Файл успешно сформирован");
+                .thenReturn(successMessage);
     }
 
     private Mono<ExportParams> parseParameters(String[] parts) {
@@ -96,7 +119,7 @@ public class ExportHandler implements CommandHandler {
                     // Без дат - вся история
                     break;
                 default:
-                    throw new CCBException("Неверное количество параметров");
+                    throw new CCBException(errorCountParameters);
             }
 
             return new ExportParams(startDate, endDate, currency);
@@ -110,7 +133,7 @@ public class ExportHandler implements CommandHandler {
                     .atOffset(ZoneOffset.UTC)
                     .toLocalDateTime();
         } catch (DateTimeParseException e) {
-            throw new CCBException("Неверный формат даты: " + dateStr);
+            throw new CCBException(errorDateFormat + dateStr);
         }
     }
 
@@ -137,6 +160,18 @@ public class ExportHandler implements CommandHandler {
             }
             return file;
         });
+    }
+
+    /**
+     * Сохраняет историю запроса
+     */
+    private void saveHistory(Long chatId, String request, String result) {
+        historySDK.saveHistory(
+                chatId,
+                "EXPORT",
+                null,
+                Map.of("request", request, "result", result)
+        ).subscribe();
     }
 
     @Data

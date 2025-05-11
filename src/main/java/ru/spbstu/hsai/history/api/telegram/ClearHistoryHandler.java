@@ -11,11 +11,13 @@ import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
 import ru.spbstu.hsai.telegram.CurrencyConverterBot;
 
+/**
+ * Обработчик команды /clear_history для очистки истории
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ClearHistoryHandler implements CommandHandler {
-
     private final HistoryService historyService;
     private final CurrencyConverterBot bot;
 
@@ -25,6 +27,12 @@ public class ClearHistoryHandler implements CommandHandler {
     @Value("${command.clear_history.error}")
     private String errorMessage;
 
+    /**
+     * Обрабатывает команду /clear_history, очищает историю команд пользователей
+     *
+     * @param message входящее сообщение от пользователя
+     * @return Mono<String> с результатом очистки истории или ошибку
+     */
     @Override
     @BotCommand("/clear_history")
     public Mono<String> handle(Message message) {

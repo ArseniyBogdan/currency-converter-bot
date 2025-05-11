@@ -22,6 +22,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Обработчик команды /convert для конвертации валют
+ */
 @Component
 @RequiredArgsConstructor
 public class ConvertHandler implements CommandHandler {
@@ -37,6 +40,27 @@ public class ConvertHandler implements CommandHandler {
     @Value("${command.convert.error}")
     private String errorMessage;
 
+    @Value("${command.convert.error.format}")
+    private String errorFormat;
+
+    @Value("${command.convert.error.settings}")
+    private String errorSettingsNotFound;
+
+    @Value("${command.convert.error.currency}")
+    private String errorCurrencyNotSpecified;
+
+    @Value("${command.convert.error.pair}")
+    private String errorPairNotSpecified;
+
+    @Value("${command.convert.error.rate}")
+    private String errorRateNotFound;
+
+    /**
+     * Обрабатывает команду /convert, производя конвертации валютных сумм из одной в другую
+     *
+     * @param message входящее сообщение от пользователя
+     * @return Mono<String> с результатом конвертации валют или сообщением об ошибке
+     */
     @Override
     @BotCommand("/convert")
     public Mono<String> handle(Message message) {
@@ -45,12 +69,7 @@ public class ConvertHandler implements CommandHandler {
                     Matcher matcher = CONVERT_PATTERN.matcher(commandText.trim());
 
                     if (!matcher.find()) {
-                        return Mono.error(new CCBException(
-                                "❌ Неверный формат команды. Используйте:\n" +
-                                        "<code>/convert &lt;СУММА&gt; &lt;ИЗ&gt; &lt;В&gt;</code>\n" +
-                                        "<code>/convert &lt;СУММА&gt; &lt;ИЗ&gt;</code>\n" +
-                                        "<code>/convert &lt;СУММА&gt;</code>"
-                        ));
+                        return Mono.error(new CCBException(errorFormat));
                     }
 
                     // Парсим параметры
@@ -89,7 +108,7 @@ public class ConvertHandler implements CommandHandler {
         return userService.getUserByChatId(chatId)
                 .flatMap(user -> determineCurrencies(user.getSettings(), from, to))
                 .flatMap(currencies -> convertAmount(amount, currencies.getT1(), currencies.getT2()))
-                .switchIfEmpty(Mono.error(new CCBException("❌ Настройки пользователя не найдены")));
+                .switchIfEmpty(Mono.error(new CCBException(errorSettingsNotFound)));
     }
 
     private Mono<Tuple2<String, String>> determineCurrencies(UserSettings settings, String from, String to) {
@@ -101,14 +120,14 @@ public class ConvertHandler implements CommandHandler {
         // Только исходная валюта (целевая - домашняя)
         if (from != null) {
             if (settings.getHomeCurrency() == null) {
-                return Mono.error(new CCBException("❌ Домашняя валюта не установлена"));
+                return Mono.error(new CCBException(errorCurrencyNotSpecified));
             }
             return Mono.just(Tuples.of(from.toUpperCase(), settings.getHomeCurrency()));
         }
 
         // Используем пару по умолчанию
         if (settings.getDefaultPair() == null) {
-            return Mono.error(new CCBException("❌ Пара по умолчанию не установлена"));
+            return Mono.error(new CCBException(errorPairNotSpecified));
         }
         String[] pair = settings.getDefaultPair().split("/");
         return Mono.just(Tuples.of(pair[0], pair[1]));
@@ -129,6 +148,6 @@ public class ConvertHandler implements CommandHandler {
                             rate.getUpdated().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
                     ));
                 })
-                .switchIfEmpty(Mono.error(new CCBException("❌ Курс для пары " + from + "/" + to + " не найден")));
+                .switchIfEmpty(Mono.error(new CCBException(String.format(errorRateNotFound,from, to))));
     }
 }

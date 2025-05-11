@@ -7,6 +7,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import reactor.core.publisher.Mono;
 import ru.spbstu.hsai.alert.service.AlertService;
 import ru.spbstu.hsai.exceptions.CCBException;
+import ru.spbstu.hsai.history.HistorySDK;
 import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
 import ru.spbstu.hsai.user.RatesService;
@@ -25,6 +26,7 @@ public class AlertAddHandler implements CommandHandler {
 
     private final AlertService alertService;
     private final RatesService ratesService;
+    private final HistorySDK historyService;
 
     @Value("${command.alert.success}")
     private String commandAlertSuccess;

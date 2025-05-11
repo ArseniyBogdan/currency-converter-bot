@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 import ru.spbstu.hsai.exceptions.CCBException;
+import ru.spbstu.hsai.history.HistorySDK;
 import ru.spbstu.hsai.rates.service.RatesServiceImpl;
 import ru.spbstu.hsai.telegram.BotCommand;
 import ru.spbstu.hsai.telegram.CommandHandler;
@@ -16,6 +17,8 @@ import ru.spbstu.hsai.user.UserServiceSDK;
 import ru.spbstu.hsai.user.UserSettings;
 
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +29,7 @@ public class ConvertHandler implements CommandHandler {
             Pattern.compile("^/convert\\s+(\\d+(?:\\.\\d+)?)(?:\\s+([A-Z]{3})(?:\\s+([A-Z]{3}))?)?$", Pattern.CASE_INSENSITIVE);
     private final RatesServiceImpl ratesService;
     private final UserServiceSDK userService;
+    private final HistorySDK historySDK;
 
     @Value("${command.convert.success}")
     private String successTemplate;
@@ -49,12 +53,32 @@ public class ConvertHandler implements CommandHandler {
                         ));
                     }
 
+                    // Парсим параметры
+                    double amount = Double.parseDouble(matcher.group(1));
+                    String fromCurrency = matcher.group(2) != null ? matcher.group(2).toUpperCase() : null;
+                    String toCurrency = matcher.group(3) != null ? matcher.group(3).toUpperCase() : null;
+
                     return processConvertRequest(
                             message.getChatId(),
-                            Double.parseDouble(matcher.group(1)),
-                            matcher.group(2),
-                            matcher.group(3)
-                    );
+                            amount,
+                            fromCurrency,
+                            toCurrency
+                    )// Сохраняем историю после успешного выполнения
+                    .flatMap(conversionResult -> {
+                        Map<String, Object> historyPayload = new HashMap<>();
+                        historyPayload.put("original_command", commandText);
+                        historyPayload.put("amount", amount);
+                        historyPayload.put("from", fromCurrency);
+                        historyPayload.put("to", toCurrency);
+                        historyPayload.put("result", conversionResult);
+
+                        return historySDK.saveHistory(
+                                message.getChatId(),
+                                "CONVERT",
+                                fromCurrency + "/" + toCurrency,
+                                historyPayload
+                        ).thenReturn(conversionResult);
+                    });
                 })
                 .onErrorResume(e -> Mono.just(
                         e instanceof CCBException ? e.getMessage() : errorMessage

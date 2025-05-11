@@ -70,6 +70,9 @@ dependencies {
 
     // For calculating currencies
     implementation("net.objecthunter:exp4j:0.4.8")
+
+    //for csv
+    implementation("com.opencsv:opencsv:5.11")
 }
 
 

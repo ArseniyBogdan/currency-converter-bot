@@ -1,6 +1,7 @@
 package ru.spbstu.hsai.alert.api.telegram;
 
 import lombok.RequiredArgsConstructor;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -68,9 +69,9 @@ public class AlertAddHandler implements CommandHandler {
                     return validatePair(pair).then(alertService.addAlert(message.getChatId(), pair, condition))
                             .then(Mono.just(commandAlertSuccess))
                             .map(result -> {
-                        saveHistory(message.getChatId(), pair, commandText, result);
-                        return result;
-                    });
+                                saveHistory(message.getChatId(), pair, commandText, result);
+                                return result;
+                            });
                 })
                 .onErrorResume(e -> Mono.just(
                         e instanceof CCBException ? e.getMessage() : commandAlertError

@@ -44,7 +44,10 @@ public class AlertListHandler implements CommandHandler {
         return alertService.getAllAlertsByChatId(message.getChatId())
                 .flatMap(alerts -> {
                     if (alerts.isEmpty()) {
-                        return Mono.just(commandAlertListEmpty);
+                        return Mono.just(commandAlertListEmpty).map(result -> {
+                            saveHistory(message.getChatId(), message.getText(), result);
+                            return result;
+                        });
                     }
 
                     StringBuilder sb = new StringBuilder(commandAlertSuccess);

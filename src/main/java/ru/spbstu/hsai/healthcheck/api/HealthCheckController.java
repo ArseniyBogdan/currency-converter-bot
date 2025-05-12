@@ -1,5 +1,6 @@
 package ru.spbstu.hsai.healthcheck.api;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -51,6 +52,7 @@ public class HealthCheckController {
         this.vaultTemplate = vaultTemplate;
     }
 
+    @Operation(summary = "Проверить состояние кластера", description = "Возвращает состояние всех сервисов")
     @GetMapping("/healthcheck")
     public Mono<ResponseEntity<HealthDTO>> healthCheck() {
         return Mono.zip(

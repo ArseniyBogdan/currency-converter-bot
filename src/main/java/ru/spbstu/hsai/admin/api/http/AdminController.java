@@ -36,7 +36,6 @@ public class AdminController {
     private final ApiKeyServiceImpl apiKeyService;
     private final RatesFetcher ratesFetcher;
     private final CurrencyConverterBot bot;
-//    private final TelegramSDK telegramSDK;
 
     // Получение списка пользователей
     @GetMapping

@@ -42,7 +42,7 @@ public class ClearHistoryHandler implements CommandHandler {
                 .onErrorResume(e -> {
                     log.error("History cleanup failed", e);
                     bot.sendMessage(message.getChatId(), errorMessage);
-                    return Mono.empty();
+                    return Mono.just(errorMessage);
                 });
     }
 

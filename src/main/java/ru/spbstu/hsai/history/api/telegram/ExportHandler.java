@@ -142,8 +142,8 @@ public class ExportHandler implements CommandHandler {
         String message = e instanceof CCBException ?
                 e.getMessage() : errorMessage;
 
-        bot.sendMessage(chatId, "❌ " + message);
-        return Mono.empty();
+        bot.sendMessage(chatId, message);
+        return Mono.just(message);
     }
 
     private Mono<File> sendFileToUser(Long chatId, File file) {

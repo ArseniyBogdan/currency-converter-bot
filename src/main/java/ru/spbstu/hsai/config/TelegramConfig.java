@@ -25,6 +25,7 @@ public class TelegramConfig {
     @Bean
     public TelegramBotsApi telegramBotsApi(CurrencyConverterBot bot) throws TelegramApiException {
         TelegramBotsApi api = new TelegramBotsApi(DefaultBotSession.class);
+        bot.getOptions().setMaxThreads(100);
         api.registerBot(bot);
         return api;
     }

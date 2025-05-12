@@ -2,6 +2,7 @@ plugins {
     id("java")
     id("application")
     id("io.spring.dependency-management") version "1.1.4"
+    id("org.asciidoctor.jvm.convert") version "3.3.2"
 }
 
 group = "ru.spbstu.hsai"
@@ -63,10 +64,14 @@ dependencies {
     // Testing
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testImplementation("org.mockito:mockito-core:5.7.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.7.0")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:rabbitmq")
     testImplementation("org.testcontainers:mongodb")
+    testImplementation("org.springframework.restdocs:spring-restdocs-webtestclient:3.0.3")
+    testImplementation("org.springframework.restdocs:spring-restdocs-asciidoctor:3.0.3")
+    testImplementation("io.projectreactor:reactor-test:3.7.5")
     testImplementation("org.springframework:spring-test")
     implementation("org.springframework.modulith:spring-modulith-test:1.3.4")
 
@@ -75,6 +80,12 @@ dependencies {
 
     //for csv
     implementation("com.opencsv:opencsv:5.11")
+
+    // Документация
+    implementation("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
+    implementation("org.springdoc:springdoc-openapi-webflux-core:1.8.0")
+    implementation("org.springdoc:springdoc-openapi-common:1.8.0")
+    implementation("io.swagger.core.v3:swagger-annotations:2.2.30")
 }
 
 
@@ -109,6 +120,17 @@ tasks.register("fatJar", Jar::class) {
             }
         })
     with(tasks.jar.get() as CopySpec)
+}
+
+tasks.register("generateDocs", org.asciidoctor.gradle.jvm.AsciidoctorTask::class) {
+    sourceDir("build/docs")
+
+    attributes(mapOf(
+        "source-highlighter" to "coderay",
+        "icons" to "font",
+        "toc" to "left",
+        "setanchors" to "true")
+    )
 }
 
 tasks.test {

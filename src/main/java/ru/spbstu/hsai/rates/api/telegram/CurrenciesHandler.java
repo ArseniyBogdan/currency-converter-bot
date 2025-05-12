@@ -46,7 +46,10 @@ public class CurrenciesHandler implements CommandHandler {
                     log.debug("Currencies list generated for chat {}", message.getChatId());
                     saveHistory(message.getChatId(), message.getText(), result);
                 })
-                .doOnError(e -> log.error("Error processing currencies command", e));
+                .onErrorResume(e -> {
+                    log.error("Error processing currencies command", e);
+                    return Mono.just(e instanceof CCBException ? e.getMessage() : errorMessage);
+                });
     }
 
     /**

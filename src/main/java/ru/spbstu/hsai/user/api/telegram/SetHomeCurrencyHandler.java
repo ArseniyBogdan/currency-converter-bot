@@ -27,7 +27,7 @@ public class SetHomeCurrencyHandler implements CommandHandler {
     private final UserServiceImpl userService;
     private final HistorySDK historySDK;
 
-    @Value("${command.sethome}")
+    @Value("${command.sethome.success}")
     private String commandSetHomeCurrencyReply;
 
     @Value("${command.sethome.error}")

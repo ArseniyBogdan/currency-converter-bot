@@ -1,6 +1,10 @@
 package ru.spbstu.hsai.healthcheck.api;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.Connection;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -28,6 +32,7 @@ import java.util.List;
 @RestController
 @RequestMapping
 @Slf4j
+@Tag(name = "Health Check", description = "Мониторинг состояния системы")
 public class HealthCheckController {
     private final ReactiveMongoTemplate mongoTemplate;
     private final RabbitTemplate rabbitTemplate;
@@ -52,7 +57,21 @@ public class HealthCheckController {
         this.vaultTemplate = vaultTemplate;
     }
 
-    @Operation(summary = "Проверить состояние кластера", description = "Возвращает состояние всех сервисов")
+    @Operation(
+            summary = "Проверить состояние кластера",
+            description = "Возвращает состояние всех сервисов",
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "Все компоненты работают",
+                            content = @Content(schema = @Schema(implementation = HealthDTO.class))),
+                    @ApiResponse(
+                            responseCode = "503",
+                            description = "Один или несколько компонентов недоступны",
+                            content = @Content(schema = @Schema(implementation = HealthDTO.class))
+                    )
+            }
+    )
     @GetMapping("/healthcheck")
     public Mono<ResponseEntity<HealthDTO>> healthCheck() {
         return Mono.zip(

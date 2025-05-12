@@ -7,6 +7,7 @@ import org.springframework.modulith.Modulithic;
 import org.springframework.web.server.adapter.WebHttpHandlerBuilder;
 import reactor.netty.http.server.HttpServer;
 import ru.spbstu.hsai.config.VaultConfig;
+import ru.spbstu.hsai.config.WebConfig;
 
 @Modulithic
 public class Application {
@@ -26,7 +27,7 @@ public class Application {
 
         // 4. Запускаем Netty сервер
         HttpServer.create()
-                .host("0.0.0.0")
+                .host("localhost")
                 .port(8081)
                 .handle(adapter)
                 .bindNow()

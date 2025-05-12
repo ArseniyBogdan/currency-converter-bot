@@ -1,0 +1,313 @@
+openapi: 3.0.0
+info:
+  title: Admin API
+  version: 1.0.0
+
+paths:
+  /users:
+    get:
+      summary: Get all users
+      responses:
+        200:
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDTO'
+
+  /users/admin:
+    get:
+      summary: Get all admins
+      responses:
+        200:
+          description: List of admins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminDTO'
+
+  /users/admin/create:
+    post:
+      summary: Create new admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAdminRequest'
+      responses:
+        201:
+          description: Admin created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDTO'
+
+  /users/{chatId}:
+    get:
+      tags:
+        - Users
+      summary: Получить пользователя по chatId
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 123456789
+      responses:
+        200:
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        404:
+          description: Пользователь не найден
+
+  /users/keys/generate:
+    post:
+      tags:
+        - API Keys
+      summary: Сгенерировать новый API-ключ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObjectIdDTO'
+      responses:
+        200:
+          description: Сгенерированный ключ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyDTO'
+        400:
+          description: Невалидные входные данные
+
+  /users/keys/revoke:
+    post:
+      tags:
+        - API Keys
+      summary: Отозвать API-ключ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObjectIdDTO'
+      responses:
+        204:
+          description: Ключ успешно отозван
+        404:
+          description: Администратор не найден
+
+  /currency/refresh:
+    post:
+      tags:
+        - Currency
+      summary: Принудительное обновление курсов валют
+      responses:
+        202:
+          description: Запрос на обновление принят
+
+  /notify:
+    post:
+      tags:
+        - Notifications
+      summary: Рассылка глобального уведомления
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BroadcastRequest'
+      responses:
+        200:
+          description: Результат рассылки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BroadcastResponse'
+
+  /healthcheck:
+    get:
+      tags:
+        - Health
+      summary: Проверить состояние кластера
+      description: Возвращает состояние всех сервисов
+      responses:
+        200:
+          description: Все компоненты работают
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDTO'
+        503:
+          description: Один или несколько компонентов недоступны
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthDTO'
+
+components:
+  schemas:
+    UserDTO:
+      type: object
+      properties:
+        chatId:
+          type: integer
+          format: int64
+        created:
+          type: string
+          format: date-time
+        settings:
+          $ref: '#/components/schemas/UserSettings'
+      required:
+        - chatId
+        - settings
+        - created
+
+    UserSettings:
+      type: object
+      properties:
+        baseCurrency:
+          type: string
+          example: "RUB"
+        targetCurrency:
+          type: string
+          example: "USD/RUB"
+
+    AdminDTO:
+      type: object
+      properties:
+        adminId:
+          type: string
+        adminName:
+          type: string
+        adminSurname:
+          type: string
+        created:
+          type: string
+          format: date-time
+
+    CreateAdminRequest:
+      type: object
+      required:
+        - name
+        - surname
+      properties:
+        name:
+          type: string
+        surname:
+          type: string
+
+    ApiKeyDTO:
+      type: object
+      properties:
+        apiKey:
+          type: string
+          example: "sk_test_1234567890abcdef"
+        adminId:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+      required:
+        - apiKey
+        - adminId
+
+    BroadcastRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+
+    BroadcastResponse:
+      type: object
+      properties:
+        sentCount:
+          type: integer
+        failedCount:
+          type: integer
+
+    HealthDTO:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        components:
+          $ref: '#/components/schemas/HealthComponentsDTO'
+        version:
+          type: string
+          example: "1.0.0"
+        authors:
+          type: array
+          items:
+            type: string
+          example: [ "Богдан Арсений", "Яшнова Дарья", "Шклярова Ксения" ]
+        timestamp:
+          type: string
+          format: date-time
+          example: "2024-01-15T14:30:45"
+      required:
+        - status
+        - components
+        - version
+        - authors
+        - timestamp
+
+    HealthComponentsDTO:
+      type: object
+      properties:
+        mongoDB:
+          $ref: '#/components/schemas/HealthStatus'
+        rabbitMQ:
+          $ref: '#/components/schemas/HealthStatus'
+        openExchangeRates:
+          $ref: '#/components/schemas/HealthStatus'
+        telegramAPI:
+          $ref: '#/components/schemas/HealthStatus'
+        vault:
+          $ref: '#/components/schemas/HealthStatus'
+      required:
+        - mongoDB
+        - rabbitMQ
+        - openExchangeRates
+        - telegramAPI
+        - vault
+
+    HealthStatus:
+      type: string
+      enum:
+        - UP
+        - DOWN
+      example: UP
+
+    VaultHealthResponse:
+      type: object
+      properties:
+        initialized:
+          type: boolean
+          example: true
+        sealed:
+          type: boolean
+          example: false
+        standby:
+          type: boolean
+          example: false
+        server_time_utc:
+          type: integer
+          format: int64
+          example: 1673789205
+      required:
+        - initialized
+        - sealed
+        - standby
+        - server_time_utc

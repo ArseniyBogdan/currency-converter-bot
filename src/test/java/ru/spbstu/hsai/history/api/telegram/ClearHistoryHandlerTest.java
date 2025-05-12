@@ -13,7 +13,6 @@ import org.telegram.telegrambots.meta.api.objects.Chat;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
-import ru.spbstu.hsai.DocumentationGenerator;
 import ru.spbstu.hsai.exceptions.CCBException;
 import ru.spbstu.hsai.history.service.HistoryService;
 import ru.spbstu.hsai.telegram.CurrencyConverterBot;
@@ -73,12 +72,6 @@ public class ClearHistoryHandlerTest {
         StepVerifier.create(handler.handle(message))
                 .expectNext(successMessage)
                 .verifyComplete();
-
-        DocumentationGenerator.generateCommandDoc(
-                "/clear_history",
-                "Очищает историю операций пользователя",
-                "/clear_history"
-        );
     }
 
     @Test

@@ -1,13 +1,7 @@
 pipeline {
     agent {
-        // Указываем метку вашего агента, который мы настраивали
+        // Убедитесь, что метка совпадает с вашим агентом
         label 'arseniy-agent' 
-    }
-
-    environment {
-        // Переменные окружения
-        MAVEN_HOME = '/usr/bin/mvn' // Путь к mvn на агенте, проверьте командой 'which mvn'
-        JAVA_HOME = '/usr/lib/jvm/java-17-openjdk-amd64' // Путь к Java, проверьте 'which java'
     }
 
     stages {
@@ -20,33 +14,44 @@ pipeline {
 
         stage('Build & Test') {
             steps {
-                echo '🔨 Собираем проект через Maven...'
-                // Сборка и пропуск тестов (если тестов нет или они падают без токена)
-                // Если нужны тесты, уберите -DskipTests
-                sh '''
-                    chmod +x mvnw 2>/dev/null || true
-                    ./mvnw clean package -DskipTests || mvn clean package -DskipTests
-                '''
+                echo '🔨 Собираем проект через Gradle...'
+                script {
+                    // Проверяем, есть ли gradlew в корне
+                    if (fileExists('gradlew')) {
+                        echo 'Найден Gradle Wrapper, используем его...'
+                        sh '''
+                            chmod +x ./gradlew
+                            ./gradlew clean build -x test
+                        '''
+                        // Флаг -x test пропускает тесты. Уберите его, если хотите запускать тесты.
+                    } else {
+                        echo 'Gradle Wrapper не найден, используем системный gradle...'
+                        // Убедитесь, что gradle установлен на агенте и добавлен в PATH
+                        sh 'gradle clean build -x test'
+                    }
+                }
             }
         }
 
         stage('Archive Artifact') {
             steps {
-                echo '📦 Архивируем JAR файл...'
-                // Ищем собранный jar файл в целевой папке
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true, allowEmptyArchive: false
+                echo '📦 Ищем и архивируем JAR файл...'
+                // Для Gradle артефакты обычно лежат в build/libs/
+                archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true, allowEmptyArchive: false
             }
         }
     }
 
     post {
         always {
-            // Очищаем рабочую директорию после сборки (опционально)
-            // cleanWs() 
-            echo '✅ Сборка завершена.'
+            echo '✅ Этап завершен.'
+            cleanWs()
         }
         failure {
-            echo '❌ Сборка провалилась! Проверьте логи.'
+            echo '❌ Сборка провалилась! Проверьте логи выше.'
+        }
+        success {
+            echo '🎉 Сборка успешна! Артефакт сохранен.'
         }
     }
 }

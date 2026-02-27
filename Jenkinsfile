@@ -1,12 +1,9 @@
 pipeline {
     agent {
         // Убедитесь, что метка совпадает с вашим агентом
-        label 'arseniy-agent' 
+        label 'yash-agent' 
     }
 
-    environment {
-        JAVA_HOME = '/opt/jdk/jdk-23.0.2+7' 
-    }
 
     stages {
         stage('Checkout') {

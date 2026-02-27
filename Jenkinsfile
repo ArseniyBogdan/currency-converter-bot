@@ -4,6 +4,9 @@ pipeline {
         label 'yash-agent' 
     }
 
+    environment {
+        JAVA_HOME = '/opt/jdk/jdk-23.0.2+7' 
+    }
 
     stages {
         stage('Checkout') {

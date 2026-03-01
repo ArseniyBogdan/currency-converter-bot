@@ -176,12 +176,10 @@ def printLog(String message, String emoji = '', int colorCode = 36, boolean bold
     def display = emoji ? "${emoji} ${message}" : message
     
     ansiColor('xterm') {
-        def output = sh(
-            script: "echo -e '${boldCode}${color}${display}${reset}'",
-            returnStdout: true
-        ).trim()
-        
-        echo output
+        sh(script: """
+            set +x
+            printf '${boldCode}${color}${display}${reset}\\n'
+        """, returnStdout: false)
     }
 }
 

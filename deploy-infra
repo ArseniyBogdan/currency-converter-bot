@@ -26,11 +26,10 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
-                            #!/bin/bash
                             echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"
                             echo "$RC_CONTENT" > openrc.sh
                             chmod +x openrc.sh
-                            source ./openrc.sh
+                            . ./openrc.sh
                             
                             echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
                             openstack token issue -f yaml
@@ -46,8 +45,7 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
-                            #!/bin/bash
-                            source ./openrc.sh
+                            . ./openrc.sh
                             echo -e "\\e[35m📋 Validating Heat template...\\e[0m"
                             openstack orchestration template validate -t ${HEAT_TEMPLATE}
                             echo -e "\\e[32m✅ Template is valid\\e[0m"
@@ -78,7 +76,7 @@ pipeline {
                                 sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
                                 
                                 sh '''
-                                    source ./openrc.sh
+                                    . ./openrc.sh
                                     openstack stack delete --yes ${HEAT_STACK_NAME}
                                     
                                     echo -e "\\e[35m⏳ Waiting for deletion...\\e[0m"
@@ -100,8 +98,7 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
-                            #!/bin/bash
-                            source ./openrc.sh
+                            . ./openrc.sh
                             
                             echo -e "\\e[35m🚀 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
                             
@@ -129,7 +126,7 @@ pipeline {
                             echo "📥 Collecting stack outputs..."
                             
                             env.SERVER_IP = sh(
-                                script: "source ./openrc.sh && openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
+                                script: ". ./openrc.sh && openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
                                 returnStdout: true
                             ).trim()
                             
@@ -161,8 +158,7 @@ pipeline {
                 sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                     sh '''
-                        #!/bin/bash
-                        source ./openrc.sh
+                        . ./openrc.sh
                         if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
                             echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"
                             openstack stack delete --yes ${HEAT_STACK_NAME}

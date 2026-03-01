@@ -59,7 +59,7 @@ resources:
   bot_server:
     type: OS::Nova::Server
     properties:
-      name: bot-vm
+      name: arseniy-bot-vm
       image: { get_param: image_id }
       flavor: { get_param: flavor_id }
       key_name: { get_param: key_name }
@@ -67,7 +67,6 @@ resources:
         - subnet: { get_param: existing_subnet_id }
       security_groups:
         - { get_resource: bot_security_group }
-      # ✅ Простой user_data без циклических ссылок
       user_data: |
         #!/bin/bash
         echo "=== currency-converter-bot init ===" >> /var/log/cloud-init-output.log
@@ -80,7 +79,7 @@ resources:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: mongo_volume }
       mountpoint: /dev/vdb
-    depends_on: bot_server  # ✅ Явная зависимость
+    depends_on: bot_server
   
   rabbit_attach:
     type: OS::Cinder::VolumeAttachment

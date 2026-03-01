@@ -113,7 +113,7 @@ pipeline {
                         printLog("Collecting stack outputs...", '📥', 36)
                         
                         env.SERVER_IP = sh(
-                            script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
+                            script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_private_ip",
                             returnStdout: true
                         ).trim()
 

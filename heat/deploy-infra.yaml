@@ -78,14 +78,14 @@ resources:
 
   # === Volume Attachments ===
   mongo_attach:
-    type: OS::Nova::VolumeAttachment
+    type: OS::Cinder::VolumeAttachment
     properties:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: mongo_volume }
       mountpoint: /dev/vdb
   
   rabbit_attach:
-    type: OS::Nova::VolumeAttachment
+    type: OS::Cinder::VolumeAttachment
     properties:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: rabbitmq_volume }

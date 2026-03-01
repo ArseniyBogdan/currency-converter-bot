@@ -81,7 +81,7 @@ pipeline {
                 ansiColor('xterm') {
                     printStageHeader('Deploy Infrastructure', '🚀', 32)
 
-                    printLog("Creating stack: ${HEAT_STACK_NAME}...", '📦', 35)
+                    printLog("Creating stack: ${HEAT_STACK_NAME}", '📦', 35)
                     printLog("Template: ${HEAT_TEMPLATE}", '', 90)
                     printLog("Image: ${OS_IMAGE_ID}", '', 90)
                     printLog("Flavor: ${OS_FLAVOR_ID}", '', 90)

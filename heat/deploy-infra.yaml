@@ -67,11 +67,20 @@ resources:
         - subnet: { get_param: existing_subnet_id }
       security_groups:
         - { get_resource: bot_security_group }
-      user_data: |
-        #!/bin/bash
-        echo "=== currency-converter-bot init ===" >> /var/log/cloud-init-output.log
-        echo "Hostname: $(hostname)" >> /var/log/cloud-init-output.log
-        date >> /var/log/cloud-init-output.log
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+            exec > /var/log/cloud-init-output.log 2>&1
+            
+            # Ждём готовности сети
+            cloud-init status --wait || true
+            
+            # Скачиваем и запускаем скрипт настройки
+            curl -fsSL https://raw.githubusercontent.com/ArseniyBogdan/currency-converter-bot/jenkins/scripts/setup-docker-env.sh -o /tmp/setup.sh
+            chmod +x /tmp/setup.sh
+            /tmp/setup.sh
+          params: {}
 
   mongo_attach:
     type: OS::Cinder::VolumeAttachment

@@ -4,7 +4,6 @@ pipeline {
     }
 
     options {
-        // ✅ Включаем поддержку ANSI-цветов для всего пайплайна
         ansiColor('xterm')
     }
     
@@ -24,19 +23,14 @@ pipeline {
         stage('Prepare OpenStack Env') {
             steps {
                 ansiColor('xterm') {
-                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
-                            echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"
-                            echo "$RC_CONTENT" > openrc.sh
-                            cat openrc.sh
-                            chmod +x openrc.sh
-                            . ./openrc.sh
-                            
-                            echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
-                            openstack token issue -f yaml
-                            echo -e "\\e[32m✅ Auth successful\\e[0m"
-                        '''
-                    }
+                    sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
+                    loadSecretsIntoEnv('OS_CREDENTIALS_ID')
+                    sh '''                        
+                        echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
+                        openstack token issue -f yaml
+                        echo -e "\\e[32m✅ Auth successful\\e[0m"
+                    '''
+                    
                 }
             }
         }
@@ -172,6 +166,21 @@ pipeline {
             ansiColor('xterm') {
                 sh "echo -e '\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m'"
                 sh "echo -e '\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}'"
+            }
+        }
+    }
+}
+
+def loadSecretsIntoEnv(String credentialId) {
+    withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
+        SECRET_BLOB.split('\n').each { line ->
+            if (line.trim() && !line.trim().startsWith('#')) {
+                def parts = line.split('=', 2)
+                if (parts.length == 2) {
+                    // Записываем в глобальный объект env
+                    env."${parts[0].trim()}" = parts[1].trim()
+                    echo "Загружена переменная: ${parts[0].trim()}"
+                }
             }
         }
     }

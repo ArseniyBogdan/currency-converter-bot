@@ -114,12 +114,8 @@ pipeline {
                         script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
                         returnStdout: true
                     ).trim()
-                    
-                    if (env.SERVER_IP) {
-                        sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[1;36m${env.SERVER_IP}\\e[0m'"
-                    } else {
-                        echo "⚠️ Could not retrieve server IP"
-                    }
+
+                    sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m'"
                     
                     sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
                     echo "✅ Outputs saved to stack_outputs.txt"

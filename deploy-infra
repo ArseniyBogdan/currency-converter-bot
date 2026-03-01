@@ -179,7 +179,7 @@ def printLog(String message, String emoji = '', int colorCode = 36, boolean bold
     ansiColor('xterm') {
         def output = sh(
             script: "echo -e '${boldCode}${color}${display}${reset}'",
-            returnStdout: false
+            returnStdout: true
         ).trim()
         
         echo output

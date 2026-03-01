@@ -173,26 +173,51 @@ pipeline {
 
 def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
-        // 1. Нормализуем окончания строк (универсально для Win/Linux/Mac)
-        SECRET_BLOB.replaceAll('\r\n', '\n').replaceAll('\r', '\n').split('\n').each { line ->
-            line = line.trim()
-            // Пропускаем пустые строки и комментарии
-            if (line && !line.startsWith('#')) {
-                def parts = line.split('=', 2)
-                if (parts.length == 2) {
-                    def key = parts[0].trim()
-                    def value = parts[1].trim()
-                    
-                    // 2. Удаляем окружающие кавычки у значения (если есть)
-                    if ((value.startsWith('"') && value.endsWith('"')) || 
-                        (value.startsWith("'") && value.endsWith("'"))) {
-                        value = value[1..-2]
-                    }
-                    
-                    env."${key}" = value
-                    echo "✅ Загружена: ${key}"
+        // Создаём локальную копию, чтобы избежать проблем с маскированием
+        def content = SECRET_BLOB
+        
+        // Нормализуем окончания строк
+        def normalized = content.replaceAll(/\r\n?/, '\n')
+        def lines = normalized.split('\n')
+        
+        println "🔍 DEBUG: Всего строк для обработки: ${lines.size()}"
+        
+        lines.each { rawLine ->
+            try {
+                def line = rawLine.trim()
+                
+                // Пропускаем пустые и комментарии
+                if (!line || line.startsWith('#')) {
+                    println "⏭️  Пропущено: '${rawLine.take(30)}...'"
+                    return
                 }
+                
+                def parts = line.split('=', 2)
+                if (parts.length != 2) {
+                    println "⚠️  Неверный формат: ${line.take(50)}"
+                    return
+                }
+                
+                def key = parts[0].trim()
+                def value = parts[1].trim()
+                
+                // Удаляем кавычки вокруг значения
+                if ((value.startsWith('"') && value.endsWith('"')) || 
+                    (value.startsWith("'") && value.endsWith("'"))) {
+                    value = value.substring(1, value.length() - 1)
+                }
+                
+                // Устанавливаем в env
+                println "⚙️  Устанавливаю: ${key}"
+                env."${key}" = value
+                println "✅ Загружено: ${key}"
+                
+            } catch (Exception e) {
+                println "❌ ОШИБКА при обработке '${rawLine.take(50)}': ${e.class}: ${e.message}"
+                // Не прерываем цикл, продолжаем обработку
             }
         }
+        
+        println "🏁 Завершена загрузка переменных"
     }
 }

@@ -25,7 +25,8 @@ pipeline {
                 ansiColor('xterm') {
                     sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
                     loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
-                    sh '''                        
+                    sh '''      
+                        set -a                  
                         echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
                         openstack token issue -f yaml
                         echo -e "\\e[32m✅ Auth successful\\e[0m"

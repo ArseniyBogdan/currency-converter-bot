@@ -1,5 +1,9 @@
 pipeline {
     agent any
+
+    options {
+        ansiColor('xterm')
+    }
     
     environment {
         OS_CREDENTIALS_ID = 'rc-credentials-arseniy'

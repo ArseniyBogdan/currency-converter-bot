@@ -4,6 +4,10 @@ pipeline {
         label 'arseniy-agent' 
     }
 
+    options {
+        ansiColor('xterm')
+    }
+
     environment {
         JAVA_HOME = '/opt/jdk/jdk-23.0.2+7' 
     }

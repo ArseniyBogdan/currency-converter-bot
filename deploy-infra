@@ -25,14 +25,8 @@ pipeline {
                 ansiColor('xterm') {
                     sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
                     loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
-                    sh '''      
-                        set -a                  
+                    sh '''           
                         echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
-
-                        # Отладка: проверяем, что переменные видны в shell (без значений!)
-                        echo "🔍 OS_AUTH_URL: ${OS_AUTH_URL:+SET}"
-                        echo "🔍 OS_PASSWORD: ${OS_PASSWORD:+SET}"
-                        echo "🔍 OS_USERNAME: ${OS_USERNAME:+SET}"
 
                         openstack token issue -f yaml
                         echo -e "\\e[32m✅ Auth successful\\e[0m"
@@ -180,14 +174,34 @@ pipeline {
 
 def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
-        SECRET_BLOB.split(' ').each { line ->
-            if (line.trim() && !line.trim().startsWith('#')) {
+        def content = SECRET_BLOB
+        
+        content.split(' ').each { rawLine ->
+            try {
+                def line = rawLine.trim()
+                if (!line || line.startsWith('#')) return
+                
                 def parts = line.split('=', 2)
-                if (parts.length == 2) {
-                    // Записываем в глобальный объект env
-                    env."${parts[0].trim()}" = parts[1].trim()
-                    echo "Загружена переменная: ${parts[0].trim()}"
+                if (parts.length != 2) return
+                
+                def key = parts[0].trim()
+                def value = parts[1].trim()
+                
+                // Удаляем ЛЮБЫЕ кавычки по краям (включая вложенные)
+                while (value.length() >= 2 && 
+                      ((value.startsWith('"') && value.endsWith('"')) || 
+                       (value.startsWith("'") && value.endsWith("'")))) {
+                    value = value.substring(1, value.length() - 1)
                 }
+                
+                // Дополнительно trim на случай пробелов внутри кавычек
+                value = value.trim()
+                
+                env."${key}" = value
+                println "✅ ${key} = ${value.take(3)}..."  // только первые 3 символа для отладки
+                
+            } catch (Exception e) {
+                println "❌ Ошибка: ${key ?: 'unknown'} - ${e.message}"
             }
         }
     }

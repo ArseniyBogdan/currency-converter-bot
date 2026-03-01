@@ -157,9 +157,7 @@ pipeline {
             }
             ansiColor('xterm') {
                 sh "echo -e '\\e[32m🎉 Infrastructure deployed successfully!\\e[0m'"
-                if (env.SERVER_IP) {
-                    sh "echo -e '\\e[36m🔐 SSH: \\e[1mssh ubuntu@${env.SERVER_IP}\\e[0m'"
-                }
+                sh "echo -e '\\e[36m🔐 SSH: \\e[1mssh ubuntu@${env.SERVER_IP}\\e[0m'"
             }
         }
     }

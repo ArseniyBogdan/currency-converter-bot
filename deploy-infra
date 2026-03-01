@@ -7,6 +7,13 @@ pipeline {
         OS_CREDENTIALS_ID = 'rc-credentials-arseniy'
         HEAT_STACK_NAME = "currency-converter-bot-infra"
         HEAT_TEMPLATE = 'heat/deploy-infra.yaml'
+
+            // === Параметры Heat-шаблона ===
+        OS_IMAGE_ID = 'ubuntu-22.04'                    // ⚠️ Исправлено: было "ununtu"
+        OS_FLAVOR_ID = 'm1.small'
+        SSH_KEY_NAME = 'jenkins-key'
+        EXISTING_SUBNET_ID = 'd80da048-c188-45a5-80e4-55d914fe58ea'
+        PUBLIC_NETWORK_ID = '17eae9b6-2168-4a07-a0d3-66d5ad2a9f0e'
     }
     
     stages {
@@ -72,15 +79,21 @@ pipeline {
         stage('Deploy Infrastructure') {
             steps {
                 ansiColor('xterm') {
-                    printStageHeader('Deploy Infrastructure', '🚀', 32)
+                    printStageHeader('Deploy Infrastructure', '🚀', 35) // magenta
                     sh '''
                         echo -e "\\e[35m📦 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
+                        echo -e "\\e[90m   Template: ${HEAT_TEMPLATE}\\e[0m"
+                        echo -e "\\e[90m   Image: ${OS_IMAGE_ID}\\e[0m"
+                        echo -e "\\e[90m   Flavor: ${OS_FLAVOR_ID}\\e[0m"
+                        echo -e "\\e[90m   Key: ${SSH_KEY_NAME}\\e[0m"
                         
                         openstack stack create \
                             -t ${HEAT_TEMPLATE} \
-                            --parameter existing_subnet_id=${EXISTING_SUBNET_ID} \
-                            --parameter jenkins_build_id=${BUILD_NUMBER} \
+                            --parameter image_id=${OS_IMAGE_ID} \
+                            --parameter flavor_id=${OS_FLAVOR_ID} \
                             --parameter key_name=${SSH_KEY_NAME} \
+                            --parameter existing_subnet_id=${EXISTING_SUBNET_ID} \
+                            --parameter public_network=${PUBLIC_NETWORK_ID} \
                             --wait \
                             ${HEAT_STACK_NAME}
                             

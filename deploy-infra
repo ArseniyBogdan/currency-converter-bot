@@ -25,7 +25,8 @@ pipeline {
             steps {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
+                        bash '''
+                            #!/bin/bash
                             echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"
                             echo "$RC_CONTENT" > openrc.sh
                             chmod +x openrc.sh
@@ -44,7 +45,7 @@ pipeline {
             steps {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
+                        bash '''
                             source ./openrc.sh
                             echo -e "\\e[35m📋 Validating Heat template...\\e[0m"
                             openstack orchestration template validate -t ${HEAT_TEMPLATE}
@@ -97,7 +98,7 @@ pipeline {
             steps {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
+                        bash '''
                             source ./openrc.sh
                             
                             echo -e "\\e[35m🚀 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
@@ -154,10 +155,10 @@ pipeline {
         failure {
             ansiColor('xterm') {
                 // ✅ Цветные ошибки через sh
-                sh "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
-                sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
+                bash "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
+                bash "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                    sh '''
+                    bash '''
                         source ./openrc.sh
                         if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
                             echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"
@@ -169,8 +170,8 @@ pipeline {
         }
         success {
             ansiColor('xterm') {
-                sh "echo -e '\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m'"
-                sh "echo -e '\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}'"
+                bash "echo -e '\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m'"
+                bash "echo -e '\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}'"
             }
         }
     }

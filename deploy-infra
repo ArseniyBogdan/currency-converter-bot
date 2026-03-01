@@ -26,10 +26,26 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
+                            #!/bin/bash
+                            set -euo pipefail
+                            
                             echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"
                             echo "$RC_CONTENT" > openrc.sh
                             chmod +x openrc.sh
+                            
+                            # Загружаем переменные окружения
                             . ./openrc.sh
+                            
+                            # 🔍 Отладка: проверяем ключевые переменные
+                            echo -e "\\e[90m🔍 Verifying required variables...\\e[0m"
+                            for var in OS_AUTH_URL OS_USERNAME OS_PASSWORD OS_PROJECT_NAME; do
+                                if [ -z "${!var:-}" ]; then
+                                    echo -e "\\e[31m❌ $var is NOT set\\e[0m"
+                                    exit 1
+                                else
+                                    echo -e "\\e[32m✅ $var is set\\e[0m"
+                                fi
+                            done
                             
                             echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
                             openstack token issue -f yaml
@@ -45,7 +61,11 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
+                            #!/bin/bash
+                            set -euo pipefail
+                            
                             . ./openrc.sh
+                            
                             echo -e "\\e[35m📋 Validating Heat template...\\e[0m"
                             openstack orchestration template validate -t ${HEAT_TEMPLATE}
                             echo -e "\\e[32m✅ Template is valid\\e[0m"
@@ -60,22 +80,27 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         script {
-                            // ✅ Простой лог БЕЗ цветов (Groovy echo)
                             echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
                             
                             def stackExists = sh(
-                                script: "source ./openrc.sh && openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'",
+                                script: """
+                                    #!/bin/bash
+                                    set -euo pipefail
+                                    . ./openrc.sh
+                                    openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'
+                                """,
                                 returnStdout: true
                             ).trim()
                             
                             if (stackExists == 'NOT_FOUND') {
                                 echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding."
                             } else {
-                                // ✅ Цветные логи ТОЛЬКО через sh
                                 sh "echo -e '\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m'"
                                 sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
                                 
                                 sh '''
+                                    #!/bin/bash
+                                    set -euo pipefail
                                     . ./openrc.sh
                                     openstack stack delete --yes ${HEAT_STACK_NAME}
                                     
@@ -98,6 +123,9 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
+                            #!/bin/bash
+                            set -euo pipefail
+                            
                             . ./openrc.sh
                             
                             echo -e "\\e[35m🚀 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
@@ -122,19 +150,26 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         script {
-                            // ✅ Простой лог без цветов
                             echo "📥 Collecting stack outputs..."
                             
                             env.SERVER_IP = sh(
-                                script: ". ./openrc.sh && openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
+                                script: """
+                                    #!/bin/bash
+                                    set -euo pipefail
+                                    . ./openrc.sh
+                                    openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip
+                                """,
                                 returnStdout: true
                             ).trim()
                             
-                            // ✅ Цветной вывод IP - ТОЛЬКО через sh
                             sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m'"
                             
-                            sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
-                            // ✅ Простой лог завершения
+                            sh '''
+                                #!/bin/bash
+                                set -euo pipefail
+                                . ./openrc.sh
+                                openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt
+                            '''
                             echo "✅ Outputs saved"
                         }
                     }
@@ -153,11 +188,12 @@ pipeline {
         }
         failure {
             ansiColor('xterm') {
-                // ✅ Цветные ошибки через sh
                 sh "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
                 sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                     sh '''
+                        #!/bin/bash
+                        set -euo pipefail
                         . ./openrc.sh
                         if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
                             echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"

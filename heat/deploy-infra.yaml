@@ -2,7 +2,6 @@ heat_template_version: 2015-10-15
 
 description: |
   Базовая инфраструктура для currency-converter-bot
-  БЕЗ Floating IP — доступ только через private network
 
 parameters: 
   # --- OpenStack Resources ---

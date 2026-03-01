@@ -60,7 +60,7 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         script {
-                            // ✅ Простой лог через echo (без цветов, но с эмодзи)
+                            // ✅ Простой лог БЕЗ цветов (Groovy echo)
                             echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
                             
                             def stackExists = sh(
@@ -71,7 +71,7 @@ pipeline {
                             if (stackExists == 'NOT_FOUND') {
                                 echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding."
                             } else {
-                                // ✅ Цветные сообщения через sh
+                                // ✅ Цветные логи ТОЛЬКО через sh
                                 sh "echo -e '\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m'"
                                 sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
                                 
@@ -122,18 +122,20 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         script {
-                            echo -e "\\e[35m📥 Collecting stack outputs...\\e[0m"
+                            // ✅ Простой лог без цветов
+                            echo "📥 Collecting stack outputs..."
                             
                             env.SERVER_IP = sh(
                                 script: "source ./openrc.sh && openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
                                 returnStdout: true
                             ).trim()
                             
-                            // ✅ Цветной вывод IP-адреса
+                            // ✅ Цветной вывод IP - ТОЛЬКО через sh
                             sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m'"
                             
                             sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
-                            echo -e "\\e[32m✅ Outputs saved\\e[0m"
+                            // ✅ Простой лог завершения
+                            echo "✅ Outputs saved"
                         }
                     }
                 }
@@ -151,6 +153,7 @@ pipeline {
         }
         failure {
             ansiColor('xterm') {
+                // ✅ Цветные ошибки через sh
                 sh "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
                 sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {

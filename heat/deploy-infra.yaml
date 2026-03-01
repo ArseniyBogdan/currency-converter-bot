@@ -2,9 +2,9 @@ heat_template_version: 2015-10-15
 
 description: |
   Базовая инфраструктура для currency-converter-bot
+  БЕЗ Floating IP
 
 parameters: 
-  # --- OpenStack Resources ---
   image_id:
     type: string
     label: Image
@@ -20,37 +20,28 @@ parameters:
     label: SSH Key
     default: "Arseniy"
   
-  # --- Network Configuration ---
   existing_subnet_id:
     type: string
     label: Existing Subnet ID
-    description: ID подсети для VM
     default: "d80da048-c188-45a5-80e4-55d914fe58ea"
 
 resources:
-  # === Security Group ===
   bot_security_group:
     type: OS::Neutron::SecurityGroup
     properties:
       name: bot-sg
       description: "SG for currency-converter-bot"
       rules:
-        # SSH — доступ из любой сети (для bastion/VPN)
         - protocol: tcp
           port_range_min: 22
           port_range_max: 22
           remote_ip_prefix: 0.0.0.0/0
-        # Приложение бота
         - protocol: tcp
           port_range_min: 8081
           port_range_max: 8081
           remote_ip_prefix: 0.0.0.0/0
-        # Исходящий трафик (разрешаем весь)
-        - protocol: icmp
-          remote_ip_prefix: 0.0.0.0/0
-          direction: egress
+        # ❌ Убрали egress rule — по умолчанию весь исходящий разрешён
 
-  # === Volumes (Persistent Storage) ===
   mongo_volume:
     type: OS::Cinder::Volume
     properties:
@@ -65,7 +56,6 @@ resources:
       size: 5
       description: "RabbitMQ data volume"
 
-  # === Virtual Machine ===
   bot_server:
     type: OS::Nova::Server
     properties:
@@ -77,22 +67,20 @@ resources:
         - subnet: { get_param: existing_subnet_id }
       security_groups:
         - { get_resource: bot_security_group }
-      user_data: {
-        "str_replace": {
-          "template": "#!/bin/bash\necho 'VM Private IP: {private_ip}'",
-          "params": {
-            "private_ip": { "get_attr": ["bot_server", "first_address"] }
-          }
-        }
-      }
+      # ✅ Простой user_data без циклических ссылок
+      user_data: |
+        #!/bin/bash
+        echo "=== currency-converter-bot init ===" >> /var/log/cloud-init-output.log
+        echo "Hostname: $(hostname)" >> /var/log/cloud-init-output.log
+        date >> /var/log/cloud-init-output.log
 
-  # === Volume Attachments ===
   mongo_attach:
     type: OS::Cinder::VolumeAttachment
     properties:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: mongo_volume }
       mountpoint: /dev/vdb
+    depends_on: bot_server  # ✅ Явная зависимость
   
   rabbit_attach:
     type: OS::Cinder::VolumeAttachment
@@ -100,6 +88,7 @@ resources:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: rabbitmq_volume }
       mountpoint: /dev/vdc
+    depends_on: bot_server
 
 outputs:
   server_private_ip:
@@ -112,24 +101,12 @@ outputs:
   
   ssh_command:
     description: "SSH command (via bastion/VPN)"
-    value: { 
-      "str_replace": { 
-        "template": "ssh -i <key> ubuntu@{ip}  # через bastion или VPN",
-        "params": { "ip": { get_attr: [bot_server, first_address] } }
-      }
-    }
-  
-  console_url:
-    description: "OpenStack Console URL"
-    value: "Откройте OpenStack Dashboard → Instances → bot-vm → Console"
-  
-  volumes_info:
-    description: "Attached volumes"
     value: 
       str_replace:
-        template: |
-          MongoDB: {mongo_vol} (10GB)
-          RabbitMQ: {rabbit_vol} (5GB)
-        params:
-          mongo_vol: { get_resource: mongo_volume }
-          rabbit_vol: { get_resource: rabbitmq_volume }
+        template: "ssh -i <key> ubuntu@{ip}"
+        params: 
+          ip: { get_attr: [bot_server, first_address] }
+  
+  console_url:
+    description: "How to access console"
+    value: "OpenStack Dashboard → Compute → Instances → bot-vm → Console"

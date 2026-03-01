@@ -85,10 +85,10 @@ pipeline {
                     printStageHeader('Deploy Infrastructure', '🚀', 32)
 
                     printLog("Creating stack: ${HEAT_STACK_NAME}", '📦', 35)
-                    printLog("Template: ${HEAT_TEMPLATE}", '', 90)
-                    printLog("Image: ${OS_IMAGE_ID}", '', 90)
-                    printLog("Flavor: ${OS_FLAVOR_ID}", '', 90)
-                    printLog("Key: ${SSH_KEY_NAME}", '', 90)
+                    printLog("Template: ${HEAT_TEMPLATE}", '', 35)
+                    printLog("Image: ${OS_IMAGE_ID}", '', 35)
+                    printLog("Flavor: ${OS_FLAVOR_ID}", '', 35)
+                    printLog("Key: ${SSH_KEY_NAME}", '', 35)
                     sh '''
                         set +x
                         openstack stack create \

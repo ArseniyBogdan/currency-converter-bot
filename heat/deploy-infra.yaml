@@ -1,0 +1,117 @@
+heat_template_version: 2015-10-15
+
+description: |
+  Базовая инфраструктура для currency-converter-bot
+
+parameters: 
+  # --- OpenStack Resources ---
+  image_id:
+    type: string
+    label: Image
+    default: "ununtu-22.04"
+  
+  flavor_id:
+    type: string
+    label: Flavor
+    default: "m1.small"
+  
+  key_name:
+    type: string
+    label: SSH Key
+    default: "jenkins-key"
+  
+  # --- Network Configuration ---
+  existing_subnet_id:
+    type: string
+    label: Existing Subnet ID
+    description: ID подсети 
+    default: "d80da048-c188-45a5-80e4-55d914fe58ea"
+  
+  public_network:
+    type: string
+    label: Public Network
+    default: "17eae9b6-2168-4a07-a0d3-66d5ad2a9f0e"
+
+resources:
+  # === Security Group ===
+  bot_security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: bot-sg
+      description: "SG for build"
+      rules:
+        - protocol: tcp
+          port_range_min: 22
+          port_range_max: 22
+          remote_ip_prefix: 0.0.0.0/0
+        - protocol: tcp
+          port_range_min: 8081
+          port_range_max: 8081
+          remote_ip_prefix: 0.0.0.0/0
+
+  # === Volumes (Persistent Storage) ===
+  mongo_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: mongo-vol
+      size: 10
+      description: "Mongo data for"
+  
+  rabbitmq_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: rabbit-vol
+      size: 5
+
+  # === Virtual Machine ===
+  bot_server:
+    type: OS::Nova::Server
+    properties:
+      name: bot-vm
+      image: { get_param: image_id }
+      flavor: { get_param: flavor_id }
+      key_name: { get_param: key_name }
+      networks:
+        - subnet: { get_param: existing_subnet_id }
+      security_groups:
+        - { get_resource: bot_security_group }
+
+  # === Volume Attachments ===
+  mongo_attach:
+    type: OS::Nova::VolumeAttachment
+    properties:
+      instance_uuid: { get_resource: bot_server }
+      volume_id: { get_resource: mongo_volume }
+      mountpoint: /dev/vdb
+  
+  rabbit_attach:
+    type: OS::Nova::VolumeAttachment
+    properties:
+      instance_uuid: { get_resource: bot_server }
+      volume_id: { get_resource: rabbitmq_volume }
+      mountpoint: /dev/vdc
+
+  # === Floating IP ===
+  bot_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_network }
+  
+  bot_floating_ip_assoc:
+    type: OS::Neutron::FloatingIPAssociation
+    properties:
+      floatingip_id: { get_resource: bot_floating_ip }
+      port_id: { get_attr: [bot_server, first_address] }
+
+outputs:
+  server_private_ip:
+    description: "Private IP"
+    value: { get_attr: [bot_server, first_address] }
+  
+  server_public_ip:
+    description: "Public Floating IP"
+    value: { get_attr: [bot_floating_ip, floating_ip_address] }
+  
+  ssh_command:
+    description: "SSH Command"
+    value: { str_replace: { template: "ssh -i <key> ubuntu@{ip}", params: {ip: { get_attr: [bot_floating_ip, floating_ip_address] } } } }

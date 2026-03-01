@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'shklyarova_node' 
+        label 'shklyarova-node' 
     }
 
     environment {

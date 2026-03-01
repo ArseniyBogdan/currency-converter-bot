@@ -119,7 +119,7 @@ pipeline {
 
                         printLog("Infrastructure ready at: ${env.SERVER_IP}", '🌍', 32, true)
                         
-                        sh "set +x && openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
+                        sh "set +x && openstack stack output show --all ${HEAT_STACK_NAME} > stack_outputs.txt"
                         printSuccess("Outputs saved to stack_outputs.txt")
                     }
                 }

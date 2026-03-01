@@ -80,14 +80,14 @@ pipeline {
             steps {
                 ansiColor('xterm') {
                     printStageHeader('Deploy Infrastructure', '🚀', 32)
+
+                    printLog("Creating stack: ${HEAT_STACK_NAME}...", '📦', 35)
+                    printLog("Template: ${HEAT_TEMPLATE}", '', 90)
+                    printLog("Image: ${OS_IMAGE_ID}", '', 90)
+                    printLog("Flavor: ${OS_FLAVOR_ID}", '', 90)
+                    printLog("Key: ${SSH_KEY_NAME}", '', 90)
                     sh '''
                         set +x
-                        printLog("Creating stack: ${HEAT_STACK_NAME}...", '📦', 35)
-                        printLog("Template: ${HEAT_TEMPLATE}", '', 90)
-                        printLog("Image: ${OS_IMAGE_ID}", '', 90)
-                        printLog("Flavor: ${OS_FLAVOR_ID}", '', 90)
-                        printLog("Key: ${SSH_KEY_NAME}", '', 90)
-                        
                         openstack stack create \
                             -t ${HEAT_TEMPLATE} \
                             --parameter image_id=${OS_IMAGE_ID} \
@@ -97,9 +97,8 @@ pipeline {
                             --parameter public_network=${PUBLIC_NETWORK_ID} \
                             --wait \
                             ${HEAT_STACK_NAME}
-                            
-                        printSuccess("Stack created successfully!")
                     '''
+                    printSuccess("Stack created successfully!")
                 }
             }
         }

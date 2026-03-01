@@ -175,6 +175,12 @@ def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
         // Создаём локальную копию, чтобы избежать проблем с маскированием
         def content = SECRET_BLOB
+
+        println "🔍 RAW контент (первые 200 символов):"
+        println content.substring(0, Math.min(200, content.length()))
+        println "🔍 Есть ли literal \\n? ${content.contains('\\n')}"
+        println "🔍 Есть ли реальные переносы? ${content.contains('\n')}"
+        println "🔍 Есть ли \\r? ${content.contains('\r')}"
         
         // Нормализуем окончания строк
         def normalized = content.replaceAll(/\r\n?/, '\n')

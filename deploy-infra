@@ -15,72 +15,71 @@ pipeline {
     
     stages {
         stage('Checkout') {
-            steps {
+            steps {                
+                printStageHeader('Checkout', '📦', 32)
                 checkout scm
             }
         }
         
         stage('Prepare OpenStack Env') {
             steps {
-                ansiColor('xterm') {
-                    sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
-                    loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
-                    sh '''           
-                        echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
-
-                        openstack token issue -f yaml
-                        echo -e "\\e[32m✅ Auth successful\\e[0m"
-                    '''
+                printStageHeader('Prepare OpenStack Env', '🔐', 32)
+                script {
+                    loadSecretsIntoEnv(OS_CREDENTIALS_ID)
                     
+                    // Проверка загрузки ключевых переменных
+                    def required = ['OS_AUTH_URL', 'OS_USERNAME', 'OS_PASSWORD', 'OS_PROJECT_NAME']
+                    def missing = required.findAll { !env[it] }
+                    if (missing) {
+                        error "❌ Missing required env vars: ${missing.join(', ')}"
+                    }
                 }
+                sh '''
+                    echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
+                    openstack token issue -f yaml
+                    echo -e "\\e[32m✅ Auth successful\\e[0m"
+                '''
             }
         }
         
         stage('Validate Template') {
             steps {
-                ansiColor('xterm') {
-                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
-                            echo -e "\\e[35m📋 Validating Heat template...\\e[0m"
-                            openstack orchestration template validate -t ${HEAT_TEMPLATE}
-                            echo -e "\\e[32m✅ Template is valid\\e[0m"
-                        '''
-                    }
-                }
+                printStageHeader('Validate Template', '📋', 32)
+                sh '''
+                    echo -e "\\e[35m🔍 Validating: ${HEAT_TEMPLATE}\\e[0m"
+                    openstack orchestration template validate -t ${HEAT_TEMPLATE}
+                    echo -e "\\e[32m✅ Template is valid\\e[0m"
+                '''
             }
         }
         
         stage('Check & Cleanup Existing Infra') {
             steps {
-                ansiColor('xterm') {
-                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        script {
-                            echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
+                printStageHeader('Check & Cleanup', '🧹', 32)
+                script {
+                    echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
+                    
+                    def stackExists = sh(
+                        script: "openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'",
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (stackExists == 'NOT_FOUND') {
+                        echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding."
+                    } else {
+                        sh "echo -e '\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m'"
+                        sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
+                        
+                        sh '''
+                            openstack stack delete --yes ${HEAT_STACK_NAME}
                             
-                            def stackExists = sh(
-                                script: "openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'",
-                                returnStdout: true
-                            ).trim()
-                            
-                            if (stackExists == 'NOT_FOUND') {
-                                echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding."
-                            } else {
-                                // ✅ Цветные логи ТОЛЬКО через sh
-                                sh "echo -e '\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m'"
-                                sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
-                                
-                                sh '''
-                                    openstack stack delete --yes ${HEAT_STACK_NAME}
-                                    
-                                    echo -e "\\e[35m⏳ Waiting for deletion...\\e[0m"
-                                    while openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null | grep -q .; do
-                                        echo -e "  \\e[90mStill deleting... (sleep 5s)\\e[0m"
-                                        sleep 5
-                                    done
-                                    echo -e "\\e[32m✅ Stack deleted\\e[0m"
-                                '''
-                            }
-                        }
+                            echo -e "\\e[35m⏳ Waiting for deletion...\\e[0m"
+                            while openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null | grep -q .; do
+                                echo -e "  \\e[90mStill deleting... (sleep 5s)\\e[0m"
+                                sleep 5
+                            done
+                            echo -e "\\e[32m✅ Stack deleted\\e[0m"
+                        '''
                     }
                 }
             }
@@ -88,47 +87,42 @@ pipeline {
         
         stage('Deploy Infrastructure') {
             steps {
-                ansiColor('xterm') {
-                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        sh '''
-                            echo -e "\\e[35m🚀 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
-                            
-                            openstack stack create \
-                                -t ${HEAT_TEMPLATE} \
-                                --parameter existing_subnet_id=${EXISTING_SUBNET_ID} \
-                                --parameter jenkins_build_id=${BUILD_NUMBER} \
-                                --parameter key_name=${SSH_KEY_NAME} \
-                                --wait \
-                                ${HEAT_STACK_NAME}
-                                
-                            echo -e "\\e[32m✅ Stack created successfully!\\e[0m"
-                        '''
-                    }
-                }
+                printStageHeader('Deploy Infrastructure', '🚀', 32)
+                sh '''
+                    echo -e "\\e[35m📦 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
+                    
+                    openstack stack create \
+                        -t ${HEAT_TEMPLATE} \
+                        --parameter existing_subnet_id=${EXISTING_SUBNET_ID} \
+                        --parameter jenkins_build_id=${BUILD_NUMBER} \
+                        --parameter key_name=${SSH_KEY_NAME} \
+                        --wait \
+                        ${HEAT_STACK_NAME}
+                        
+                    echo -e "\\e[32m✅ Stack created successfully!\\e[0m"
+                '''
             }
         }
         
         stage('Collect Outputs') {
             steps {
-                ansiColor('xterm') {
-                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                        script {
-                            // ✅ Простой лог без цветов
-                            echo "📥 Collecting stack outputs..."
-                            
-                            env.SERVER_IP = sh(
-                                script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
-                                returnStdout: true
-                            ).trim()
-                            
-                            // ✅ Цветной вывод IP - ТОЛЬКО через sh
-                            sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m'"
-                            
-                            sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
-                            // ✅ Простой лог завершения
-                            echo "✅ Outputs saved"
-                        }
+                printStageHeader('Collect Outputs', '📥', 32) 
+                script {
+                    echo "📥 Collecting stack outputs..."
+                    
+                    env.SERVER_IP = sh(
+                        script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (env.SERVER_IP) {
+                        sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[1;36m${env.SERVER_IP}\\e[0m'"
+                    } else {
+                        echo "⚠️ Could not retrieve server IP"
                     }
+                    
+                    sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
+                    echo "✅ Outputs saved to stack_outputs.txt"
                 }
             }
         }
@@ -136,41 +130,67 @@ pipeline {
     
     post {
         always {
+            script {
+                printStageHeader('Post Actions', '📦', 32)
+            }
             ansiColor('xterm') {
-                echo "📦 Archiving artifacts..."
+                echo "🗃️ Archiving artifacts..."
                 archiveArtifacts artifacts: 'stack_outputs.txt', allowEmptyArchive: true
+                echo "🧹 Cleaning workspace..."
                 cleanWs()
             }
         }
         failure {
+            script {
+                printStageHeader('❌ FAILURE', '💥', 31) // red
+            }
             ansiColor('xterm') {
-                // ✅ Цветные ошибки через sh
                 sh "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
                 sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
-                withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
-                    sh '''
-                        if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
-                            echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"
-                            openstack stack delete --yes ${HEAT_STACK_NAME}
-                        fi
-                    '''
-                }
+                sh '''
+                    if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
+                        echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"
+                        openstack stack delete --yes ${HEAT_STACK_NAME} || true
+                    fi
+                '''
             }
         }
         success {
+            script {
+                printStageHeader('🎉 SUCCESS', '✨', 32) // green
+            }
             ansiColor('xterm') {
-                sh "echo -e '\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m'"
-                sh "echo -e '\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}'"
+                sh "echo -e '\\e[32m🎉 Infrastructure deployed successfully!\\e[0m'"
+                if (env.SERVER_IP) {
+                    sh "echo -e '\\e[36m🔐 SSH: \\e[1mssh ubuntu@${env.SERVER_IP}\\e[0m'"
+                }
             }
         }
     }
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+def printStageHeader(String stageName, String emoji = '', int colorCode = 36) {
+    def border = "=" * 22
+    def bold = "\\e[1m"
+    def color = "\\e[${colorCode}m"
+    def reset = "\\e[0m"
+    def display = emoji ? "${emoji} ${stageName}" : stageName
+    
+    sh(script: "echo -e '${bold}${color}${border} ${display} ${border}${reset}'", returnStdout: false)
 }
 
 def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
         def content = SECRET_BLOB
         
-        content.split(' ').each { rawLine ->
+        // Нормализуем переносы строк
+        content = content.replaceAll('\\\\n', '\n').replaceAll(/\r\n?/, '\n')
+        
+        content.split('\n').each { rawLine ->
             try {
                 def line = rawLine.trim()
                 if (!line || line.startsWith('#')) return
@@ -181,19 +201,19 @@ def loadSecretsIntoEnv(String credentialId) {
                 def key = parts[0].trim()
                 def value = parts[1].trim()
                 
-                // Удаляем ЛЮБЫЕ кавычки по краям (включая вложенные)
+                // Удаляем кавычки по краям
                 while (value.length() >= 2 && 
                       ((value.startsWith('"') && value.endsWith('"')) || 
                        (value.startsWith("'") && value.endsWith("'")))) {
                     value = value.substring(1, value.length() - 1)
                 }
-                
-                // Дополнительно trim на случай пробелов внутри кавычек
                 value = value.trim()
                 
-                env."${key}" = value                
+                env."${key}" = value
+                println "✅ Loaded: ${key}"
+                
             } catch (Exception e) {
-                println "❌ Ошибка: ${key ?: 'unknown'} - ${e.message}"
+                println "❌ Error loading ${key ?: 'unknown'}: ${e.message}"
             }
         }
     }

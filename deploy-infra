@@ -37,17 +37,6 @@ pipeline {
             }
         }
         
-        stage('Validate Template') {
-            steps {
-                printStageHeader('Validate Template', '📋', 32)
-                sh '''
-                    echo -e "\\e[35m🔍 Validating: ${HEAT_TEMPLATE}\\e[0m"
-                    openstack orchestration template validate -t ${HEAT_TEMPLATE}
-                    echo -e "\\e[32m✅ Template is valid\\e[0m"
-                '''
-            }
-        }
-        
         stage('Check & Cleanup Existing Infra') {
             steps {
                 printStageHeader('Check & Cleanup', '🧹', 32)

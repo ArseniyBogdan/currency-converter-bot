@@ -197,9 +197,7 @@ def loadSecretsIntoEnv(String credentialId) {
                 // Дополнительно trim на случай пробелов внутри кавычек
                 value = value.trim()
                 
-                env."${key}" = value
-                println "✅ ${key} = ${value.take(3)}..."  // только первые 3 символа для отладки
-                
+                env."${key}" = value                
             } catch (Exception e) {
                 println "❌ Ошибка: ${key ?: 'unknown'} - ${e.message}"
             }

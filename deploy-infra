@@ -23,7 +23,7 @@ pipeline {
                 script {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
-                            echo "$RC_CONTENT" > openrc.sh
+                            \e[32mecho "$RC_CONTENT" > openrc.sh\e[0m
                             chmod +x openrc.sh
                             source ./openrc.sh
                             # Проверка связи

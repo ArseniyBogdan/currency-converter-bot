@@ -28,6 +28,12 @@ pipeline {
                     sh '''      
                         set -a                  
                         echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
+
+                        # Отладка: проверяем, что переменные видны в shell (без значений!)
+                        echo "🔍 OS_AUTH_URL: ${OS_AUTH_URL:+SET}"
+                        echo "🔍 OS_PASSWORD: ${OS_PASSWORD:+SET}"
+                        echo "🔍 OS_USERNAME: ${OS_USERNAME:+SET}"
+
                         openstack token issue -f yaml
                         echo -e "\\e[32m✅ Auth successful\\e[0m"
                     '''

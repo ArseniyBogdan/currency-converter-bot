@@ -65,14 +65,14 @@ pipeline {
                             sh '''
                                 set +x
                                 openstack stack delete --yes ${HEAT_STACK_NAME}
-                                
-                                printLog("Waiting for deletion...", '⏳', 35)
+                            '''
+                            printLog("Waiting for deletion...", '⏳', 35)
+                            sh '''
                                 while openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null | grep -q .; do
-                                    printLog("Still deleting... (sleep 5s)", '', 90)
                                     sleep 5
                                 done
-                                printSuccess("Stack deleted")
                             '''
+                            printSuccess("Stack deleted")
                         }
                     }
                 }
@@ -149,7 +149,6 @@ pipeline {
                 sh '''
                     set +x
                     if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
-                        printLog("Cleaning up failed stack...", '🗑️', 33)
                         openstack stack delete --yes ${HEAT_STACK_NAME} || true
                     fi
                 '''

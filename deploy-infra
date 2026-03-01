@@ -79,7 +79,7 @@ pipeline {
         stage('Deploy Infrastructure') {
             steps {
                 ansiColor('xterm') {
-                    printStageHeader('Deploy Infrastructure', '🚀', 35) // magenta
+                    printStageHeader('Deploy Infrastructure', '🚀', 32) // magenta
                     sh '''
                         echo -e "\\e[35m📦 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
                         echo -e "\\e[90m   Template: ${HEAT_TEMPLATE}\\e[0m"
@@ -167,6 +167,22 @@ pipeline {
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+def printLog(String message, String emoji = '', int colorCode = 36, boolean bold = false) {
+    def boldCode = bold ? "\\e[1m" : ""
+    def color = "\\e[${colorCode}m"
+    def reset = "\\e[0m"
+    def display = emoji ? "${emoji} ${message}" : message
+    
+    ansiColor('xterm') {
+        def output = sh(
+            script: "echo -e '${boldCode}${color}${display}${reset}'",
+            returnStdout: true
+        ).trim()
+        
+        echo output
+    }
+}
 
 def printStageHeader(String stageName, String emoji = '', int colorCode = 36) {
     def border = "=" * 22

@@ -1,7 +1,10 @@
 pipeline {
-    agent any
+    agent {
+        label 'arseniy-agent' 
+    }
 
     options {
+        // ✅ Включаем поддержку ANSI-цветов для всего пайплайна
         ansiColor('xterm')
     }
     
@@ -57,7 +60,8 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         script {
-                            echo -e "\\e[35m🔍 Checking if stack '${HEAT_STACK_NAME}' exists...\\e[0m"
+                            // ✅ Простой лог через echo (без цветов, но с эмодзи)
+                            echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
                             
                             def stackExists = sh(
                                 script: "source ./openrc.sh && openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'",
@@ -65,10 +69,12 @@ pipeline {
                             ).trim()
                             
                             if (stackExists == 'NOT_FOUND') {
-                                echo -e "\\e[32m✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding.\\e[0m"
+                                echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding."
                             } else {
-                                echo -e "\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m"
-                                echo -e "\\e[31m🗑️ Deleting existing stack...\\e[0m"
+                                // ✅ Цветные сообщения через sh
+                                sh "echo -e '\\e[33m⚠️ Stack exists with status: ${stackExists}\\e[0m'"
+                                sh "echo -e '\\e[31m🗑️ Deleting existing stack...\\e[0m'"
+                                
                                 sh '''
                                     source ./openrc.sh
                                     openstack stack delete --yes ${HEAT_STACK_NAME}
@@ -123,7 +129,8 @@ pipeline {
                                 returnStdout: true
                             ).trim()
                             
-                            echo -e "\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m"
+                            // ✅ Цветной вывод IP-адреса
+                            sh "echo -e '\\e[32m🌍 Infrastructure ready at: \\e[36m${env.SERVER_IP}\\e[0m'"
                             
                             sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
                             echo -e "\\e[32m✅ Outputs saved\\e[0m"
@@ -137,15 +144,15 @@ pipeline {
     post {
         always {
             ansiColor('xterm') {
-                echo -e "\\e[90m📦 Archiving artifacts...\\e[0m"
+                echo "📦 Archiving artifacts..."
                 archiveArtifacts artifacts: 'stack_outputs.txt', allowEmptyArchive: true
                 cleanWs()
             }
         }
         failure {
             ansiColor('xterm') {
-                echo -e "\\e[31m❌ DEPLOYMENT FAILED\\e[0m"
-                echo -e "\\e[31m🔍 Check OpenStack dashboard for details\\e[0m"
+                sh "echo -e '\\e[31m❌ DEPLOYMENT FAILED\\e[0m'"
+                sh "echo -e '\\e[31m🔍 Check OpenStack dashboard for details\\e[0m'"
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                     sh '''
                         source ./openrc.sh
@@ -159,8 +166,8 @@ pipeline {
         }
         success {
             ansiColor('xterm') {
-                echo -e "\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m"
-                echo -e "\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}"
+                sh "echo -e '\\e[32m🎉 SUCCESS: Infrastructure deployed!\\e[0m'"
+                sh "echo -e '\\e[36m🔐 SSH: \\e[0mssh ubuntu@${env.SERVER_IP}'"
             }
         }
     }

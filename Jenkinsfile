@@ -1,6 +1,5 @@
 pipeline {
     agent {
-        // Убедитесь, что метка совпадает с вашим агентом
         label 'arseniy-agent' 
     }
 

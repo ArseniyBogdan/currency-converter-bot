@@ -11,8 +11,8 @@ pipeline {
     
     stages {
         stage('Checkout') {
-            ansiColor('xterm') {
-                steps {                
+            steps {    
+                ansiColor('xterm') {            
                     printStageHeader('Checkout', '📦', 32)
                     checkout scm
                 }
@@ -20,8 +20,8 @@ pipeline {
         }
         
         stage('Prepare OpenStack Env') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
                     loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
                     sh '''           
@@ -36,8 +36,8 @@ pipeline {
         }
         
         stage('Check & Cleanup Existing Infra') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     printStageHeader('Check & Cleanup', '🧹', 32)
                     script {
                         echo "🔍 Checking if stack '${HEAT_STACK_NAME}' exists..."
@@ -70,8 +70,8 @@ pipeline {
         }
         
         stage('Deploy Infrastructure') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     printStageHeader('Deploy Infrastructure', '🚀', 32)
                     sh '''
                         echo -e "\\e[35m📦 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
@@ -91,8 +91,8 @@ pipeline {
         }
         
         stage('Collect Outputs') {
-            ansiColor('xterm') {
-                steps {
+            steps {
+                ansiColor('xterm') {
                     printStageHeader('Collect Outputs', '📥', 32) 
                     script {
                         echo "📥 Collecting stack outputs..."

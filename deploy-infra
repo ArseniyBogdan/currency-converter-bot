@@ -27,7 +27,6 @@ pipeline {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
                             #!/bin/bash
-                            set -euo pipefail
                             
                             echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"
                             echo "$RC_CONTENT" > openrc.sh
@@ -62,7 +61,6 @@ pipeline {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
                             #!/bin/bash
-                            set -euo pipefail
                             
                             . ./openrc.sh
                             
@@ -85,7 +83,6 @@ pipeline {
                             def stackExists = sh(
                                 script: """
                                     #!/bin/bash
-                                    set -euo pipefail
                                     . ./openrc.sh
                                     openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'
                                 """,
@@ -100,7 +97,6 @@ pipeline {
                                 
                                 sh '''
                                     #!/bin/bash
-                                    set -euo pipefail
                                     . ./openrc.sh
                                     openstack stack delete --yes ${HEAT_STACK_NAME}
                                     
@@ -123,9 +119,7 @@ pipeline {
                 ansiColor('xterm') {
                     withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                         sh '''
-                            #!/bin/bash
-                            set -euo pipefail
-                            
+                            #!/bin/bash                            
                             . ./openrc.sh
                             
                             echo -e "\\e[35m🚀 Creating stack: ${HEAT_STACK_NAME}...\\e[0m"
@@ -155,7 +149,6 @@ pipeline {
                             env.SERVER_IP = sh(
                                 script: """
                                     #!/bin/bash
-                                    set -euo pipefail
                                     . ./openrc.sh
                                     openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip
                                 """,
@@ -166,7 +159,6 @@ pipeline {
                             
                             sh '''
                                 #!/bin/bash
-                                set -euo pipefail
                                 . ./openrc.sh
                                 openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt
                             '''
@@ -193,7 +185,6 @@ pipeline {
                 withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
                     sh '''
                         #!/bin/bash
-                        set -euo pipefail
                         . ./openrc.sh
                         if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
                             echo -e "\\e[33m🗑️ Cleaning up failed stack...\\e[0m"

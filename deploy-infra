@@ -1,0 +1,149 @@
+pipeline {
+    agent any
+    
+    environment {
+        OS_CREDENTIALS_ID = 'rc-credentials-arseniy'
+        HEAT_STACK_NAME = "currency-converter-bot-infra"
+        HEAT_TEMPLATE = 'heat/deploy-infra.yaml'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Prepare OpenStack Env') {
+            steps {
+                script {
+                    withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                        sh '''
+                            echo "$RC_CONTENT" > openrc.sh
+                            chmod +x openrc.sh
+                            source ./openrc.sh
+                            # Проверка связи
+                            openstack token issue -f yaml
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Validate Template') {
+            steps {
+                withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                    sh '''
+                        source ./openrc.sh
+                        echo "Validating Heat template..."
+                        openstack orchestration template validate -t ${HEAT_TEMPLATE}
+                    '''
+                }
+            }
+        }
+        
+        stage('Check & Cleanup Existing Infra') {
+            steps {
+                withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                    script {
+                        echo "🔍 Checking if stack '${HEAT_STACK_NAME}' already exists..."
+                        
+                        // Проверяем существование стека
+                        def stackExists = sh(
+                            script: "source ./openrc.sh && openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null || echo 'NOT_FOUND'",
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "Stack status: ${stackExists}"
+                        
+                        if (stackExists == 'NOT_FOUND') {
+                            echo "✅ Stack '${HEAT_STACK_NAME}' does not exist. Proceeding with creation."
+                        } else {
+                            echo "⚠️ Stack '${HEAT_STACK_NAME}' exists with status: ${stackExists}"
+                            echo "🗑️ Deleting existing stack..."
+                            sh '''
+                                source ./openrc.sh
+                                openstack stack delete --yes ${HEAT_STACK_NAME}
+                                
+                                # Ждём полного удаления
+                                echo "⏳ Waiting for stack deletion to complete..."
+                                while openstack stack show ${HEAT_STACK_NAME} -f value -c stack_status 2>/dev/null | grep -q .; do
+                                    echo "  Still deleting... (sleep 5s)"
+                                    sleep 5
+                                done
+                                echo "✅ Stack deleted."
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Deploy Infrastructure') {
+            steps {
+                withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                    sh '''
+                        source ./openrc.sh
+                        
+                        echo "Creating stack: ${HEAT_STACK_NAME}..."
+                        
+                        # Создаем стек. 
+                        # --parameter используем для передачи динамических значений
+                        openstack stack create \
+                            -t ${HEAT_TEMPLATE} \
+                            --parameter existing_subnet_id=${EXISTING_SUBNET_ID} \
+                            --parameter jenkins_build_id=${BUILD_NUMBER} \
+                            --parameter key_name=${SSH_KEY_NAME} \
+                            --wait \
+                            ${HEAT_STACK_NAME}
+                            
+                        echo "✅ Stack created successfully!"
+                    '''
+                }
+            }
+        }
+        
+        stage('Collect Outputs') {
+            steps {
+                withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                    script {
+                        // Получаем IP и сохраняем в переменные Jenkins
+                        env.SERVER_IP = sh(
+                            script: "source ./openrc.sh && openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_public_ip",
+                            returnStdout: true
+                        ).trim()
+                        
+                        echo "🌍 Infrastructure is ready at: ${env.SERVER_IP}"
+                        
+                        // Сохраняем вывод в файл для архивации
+                        sh "openstack stack output show ${HEAT_STACK_NAME} > stack_outputs.txt"
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Архивируем логи
+            archiveArtifacts artifacts: 'stack_outputs.txt', allowEmptyArchive: true
+            cleanWs()
+        }
+        failure {
+            echo "❌ Deployment failed. Check OpenStack dashboard for details."
+            withCredentials([string(credentialsId: OS_CREDENTIALS_ID, variable: 'RC_CONTENT')]) {
+                sh '''
+                    source ./openrc.sh
+                    # Удаляем только если стек существует
+                    if openstack stack show ${HEAT_STACK_NAME} &>/dev/null; then
+                        echo "🗑️ Cleaning up failed stack..."
+                        openstack stack delete --yes ${HEAT_STACK_NAME}
+                    fi
+                '''
+            }
+        }
+        success {
+            echo "🎉 Infrastructure deployed! SSH: ssh ubuntu@${env.SERVER_IP}"
+        }
+    }
+}

@@ -23,22 +23,17 @@ pipeline {
         
         stage('Prepare OpenStack Env') {
             steps {
-                printStageHeader('Prepare OpenStack Env', '🔐', 32)
-                script {
-                    loadSecretsIntoEnv(OS_CREDENTIALS_ID)
+                ansiColor('xterm') {
+                    sh 'echo -e "\\e[36m🔐 Loading OpenStack credentials...\\e[0m"'
+                    loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
+                    sh '''           
+                        echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
+
+                        openstack token issue -f yaml
+                        echo -e "\\e[32m✅ Auth successful\\e[0m"
+                    '''
                     
-                    // Проверка загрузки ключевых переменных
-                    def required = ['OS_AUTH_URL', 'OS_USERNAME', 'OS_PASSWORD', 'OS_PROJECT_NAME']
-                    def missing = required.findAll { !env[it] }
-                    if (missing) {
-                        error "❌ Missing required env vars: ${missing.join(', ')}"
-                    }
                 }
-                sh '''
-                    echo -e "\\e[35m🔑 Testing OpenStack connection...\\e[0m"
-                    openstack token issue -f yaml
-                    echo -e "\\e[32m✅ Auth successful\\e[0m"
-                '''
             }
         }
         

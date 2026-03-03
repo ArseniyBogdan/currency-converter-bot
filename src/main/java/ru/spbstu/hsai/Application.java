@@ -27,7 +27,7 @@ public class Application {
 
         // 4. Запускаем Netty сервер
         HttpServer.create()
-                .host("localhost")
+                .host("0.0.0.0")
                 .port(8081)
                 .handle(adapter)
                 .bindNow()

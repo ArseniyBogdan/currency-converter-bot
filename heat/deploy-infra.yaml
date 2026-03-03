@@ -40,7 +40,6 @@ resources:
           port_range_min: 8081
           port_range_max: 8081
           remote_ip_prefix: 0.0.0.0/0
-        # ❌ Убрали egress rule — по умолчанию весь исходящий разрешён
 
   mongo_volume:
     type: OS::Cinder::Volume
@@ -77,7 +76,7 @@ resources:
             cloud-init status --wait || true
             
             # Скачиваем и запускаем скрипт настройки
-            curl -fsSL https://raw.githubusercontent.com/ArseniyBogdan/currency-converter-bot/jenkins/scripts/setup-docker-env.sh -o /tmp/setup.sh
+            curl -fsSL https://raw.githubusercontent.com/ArseniyBogdan/currency-converter-bot/jenkins/scripts/install-deps.sh -o /tmp/setup.sh
             chmod +x /tmp/setup.sh
             /tmp/setup.sh
           params: {}

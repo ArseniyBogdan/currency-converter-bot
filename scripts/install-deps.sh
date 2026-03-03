@@ -1,7 +1,10 @@
 #!/bin/bash
 # =============================================================================
-# setup-docker-env.sh — Подготовка окружения для docker compose
+# setup-docker-env.sh — Подготовка окружения для currency-converter-bot
 # Цель: после запуска скрипта достаточно выполнить "docker compose up"
+# Изменения:
+#   • Java 23 через wget (прямая загрузка Temurin)
+#   • Монтирование Cinder-томов для MongoDB и RabbitMQ
 # =============================================================================
 
 set -euo pipefail
@@ -30,7 +33,8 @@ apt-get install -y -qq \
     gnupg ca-certificates \
     apt-transport-https \
     software-properties-common \
-    lsb-release
+    lsb-release \
+    xfsprogs ext4
 
 # =============================================================================
 # 2. Docker Engine
@@ -59,24 +63,106 @@ log "✅ Docker: $(docker --version)"
 log "✅ Docker Compose: $(docker compose version)"
 
 # =============================================================================
-# 3. Java (опционально — если нужно для локальной сборки)
+# 3. ☕ Java 23
 # =============================================================================
-log "☕ Установка Java 21 (LTS)..."
+log "☕ Установка Java 23"
 
-curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor -o /etc/apt/keyrings/adoptium.gpg
-echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/adoptium.list
+JAVA_VERSION="23.0.2+7"
+JAVA_BUILD="23.0.2+7"
+JAVA_FILENAME="OpenJDK23U-jdk_x64_linux_hotspot_${JAVA_BUILD}.tar.gz"
+JAVA_URL="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-${JAVA_VERSION}/${JAVA_FILENAME}"
+JAVA_INSTALL_DIR="/opt/java/temurin-23"
 
-apt-get update -qq
-apt-get install -y -qq temurin-21-jdk
+# Создаём директорию
+mkdir -p "${JAVA_INSTALL_DIR}"
 
-# JAVA_HOME
-export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-echo "JAVA_HOME=${JAVA_HOME}" >> /etc/environment
+# Скачиваем только если ещё не установлено
+if [[ ! -f "${JAVA_INSTALL_DIR}/bin/java" ]]; then
+    log "⬇️  Скачивание Java 23: ${JAVA_URL}"
+    wget --progress=bar:force -O "/tmp/${JAVA_FILENAME}" "${JAVA_URL}"
+    
+    log "📦 Распаковка Java 23..."
+    tar -xzf "/tmp/${JAVA_FILENAME}" -C "${JAVA_INSTALL_DIR}" --strip-components=1
+    
+    # Очистка
+    rm -f "/tmp/${JAVA_FILENAME}"
+    
+    # Настройка JAVA_HOME
+    echo "JAVA_HOME=${JAVA_INSTALL_DIR}" >> /etc/environment
+    echo "PATH=\${JAVA_HOME}/bin:\${PATH}" >> /etc/environment
+    export JAVA_HOME="${JAVA_INSTALL_DIR}"
+    
+    log "✅ Java 23 установлена в ${JAVA_INSTALL_DIR}"
+else
+    log "✅ Java 23 уже установлена, пропускаем"
+fi
 
-log "✅ Java: $(java -version 2>&1 | head -1)"
+log "✅ Java: $(${JAVA_INSTALL_DIR}/bin/java -version 2>&1 | head -1)"
 
 # =============================================================================
-# 4. Пользователь для Docker (без sudo)
+# 4. 🗄️ Монтирование Cinder-томов для MongoDB и RabbitMQ
+# =============================================================================
+log "💾 Настройка томов для данных..."
+
+# Функция для безопасного монтирования тома
+mount_volume() {
+    local device="$1"
+    local mount_point="$2"
+    local owner="$3"
+    local group="$4"
+    
+    log "🔍 Проверка устройства ${device}..."
+    
+    # Если устройство не существует — пропускаем (том может быть не подключён)
+    if [[ ! -b "${device}" ]]; then
+        log "⚠️  Устройство ${device} не найдено, пропускаем монтирование"
+        return 0
+    fi
+    
+    # Проверяем, смонтировано ли уже
+    if mountpoint -q "${mount_point}" 2>/dev/null; then
+        log "✅ ${mount_point} уже смонтирован"
+        return 0
+    fi
+    
+    # Проверяем, есть ли файловая система (чтобы не отформатировать существующие данные)
+    if ! blkid "${device}" | grep -q "TYPE="; then
+        log "📀 Форматирование ${device} в ext4..."
+        mkfs.ext4 -F "${device}"
+    else
+        log "✅ На ${device} уже есть файловая система"
+    fi
+    
+    # Создаём точку монтирования
+    mkdir -p "${mount_point}"
+    
+    # Монтируем
+    mount "${device}" "${mount_point}"
+    log "✅ Смонтировано: ${device} → ${mount_point}"
+    
+    # Добавляем в fstab для персистентности (если ещё нет)
+    if ! grep -q "${device}" /etc/fstab; then
+        echo "${device} ${mount_point} ext4 defaults,nofail 0 2" >> /etc/fstab
+        log "✅ Добавлено в /etc/fstab"
+    fi
+    
+    # Создаём пользователя/группу если нужно и устанавливаем права
+    if ! id -u "${owner}" &>/dev/null; then
+        useradd -r -s /usr/sbin/nologin "${owner}" 2>/dev/null || true
+    fi
+    chown -R "${owner}:${group}" "${mount_point}"
+    chmod 750 "${mount_point}"
+    log "✅ Права установлены: ${owner}:${group} на ${mount_point}"
+}
+
+# 🔹 MongoDB: /dev/vdb → /var/lib/mongodb
+mount_volume "/dev/vdb" "/var/lib/mongodb" "mongodb" "mongodb"
+
+# 🔹 RabbitMQ: /dev/vdc → /var/lib/rabbitmq  
+mount_volume "/dev/vdc" "/var/lib/rabbitmq" "rabbitmq" "rabbitmq"
+
+# =============================================================================
+# 5. 👤 Пользователь для Docker (без sudo)
 # =============================================================================
 log "👤 Настройка доступа к Docker..."
 
@@ -100,7 +186,7 @@ fi
 log "✅ Пользователь 'botuser' добавлен в группу docker"
 
 # =============================================================================
-# 5. Подготовка директории для проекта
+# 6. 📁 Подготовка директории для проекта
 # =============================================================================
 log "📁 Подготовка рабочей директории..."
 
@@ -109,5 +195,3 @@ mkdir -p "${APP_DIR}"
 chown -R botuser:botuser "${APP_DIR}"
 
 log "✅ Директория готова: ${APP_DIR}"
-
-log "🎉 Настройка завершена!"

@@ -20,7 +20,7 @@ public class HistoryTTLConfig {
 
         indexOps.ensureIndex(new Index()
                 .on("created", Sort.Direction.ASC)
-                .expire(30, TimeUnit.DAYS));
+                .expire(30, TimeUnit.DAYS)).subscribe();
 
         return indexOps;
     }

@@ -29,7 +29,7 @@ resources:
     type: OS::Neutron::SecurityGroup
     properties:
       name: yash-sg
-      description: "SG for currency-converter-bot"
+      description: SG for currency-converter-bot
       rules:
         - protocol: tcp
           port_range_min: 22
@@ -41,20 +41,20 @@ resources:
           remote_ip_prefix: 0.0.0.0/0
 
   mongo_volume:
-  type: OS::Cinder::Volume
-  deletion_policy: Delete
-  properties:
-    name: mongo-vol
-    size: 10
-    description: "MongoDB data volume"
+    type: OS::Cinder::Volume
+    deletion_policy: Delete
+    properties:
+      name: mongo-vol
+      size: 10
+      description: MongoDB data volume
 
-rabbitmq_volume:
-  type: OS::Cinder::Volume
-  deletion_policy: Delete
-  properties:
-    name: rabbit-vol
-    size: 5
-    description: "RabbitMQ data volume"
+  rabbitmq_volume:
+    type: OS::Cinder::Volume
+    deletion_policy: Delete
+    properties:
+      name: rabbit-vol
+      size: 5
+      description: RabbitMQ data volume
 
   bot_server:
     type: OS::Nova::Server
@@ -67,20 +67,6 @@ rabbitmq_volume:
         - subnet: { get_param: existing_subnet_id }
       security_groups:
         - { get_resource: bot_security_group }
-      user_data:
-        str_replace:
-          template: |
-            #!/bin/bash
-            exec > /var/log/cloud-init-output.log 2>&1
-            
-            # Ждём готовности сети
-            cloud-init status --wait || true
-            
-            # Скачиваем и запускаем скрипт настройки
-            curl -fsSL https://raw.githubusercontent.com/ArseniyBogdan/currency-converter-bot/jenkins-yash/scripts/install-deps.sh -o /tmp/setup.sh
-            chmod +x /tmp/setup.sh
-            /tmp/setup.sh
-          params: {}
 
   mongo_attach:
     type: OS::Cinder::VolumeAttachment
@@ -88,15 +74,13 @@ rabbitmq_volume:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: mongo_volume }
       mountpoint: /dev/vdb
-    depends_on: bot_server
-  
+
   rabbit_attach:
     type: OS::Cinder::VolumeAttachment
     properties:
       instance_uuid: { get_resource: bot_server }
       volume_id: { get_resource: rabbitmq_volume }
       mountpoint: /dev/vdc
-    depends_on: bot_server
 
 outputs:
   server_private_ip:

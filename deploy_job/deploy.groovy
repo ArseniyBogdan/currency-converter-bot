@@ -90,11 +90,11 @@ pipeline {
                     
                     // ✅ Читаем файл
                     def jsonContent = readFile('stack_outputs.json')
+
+                    printDebug("🔍 Debug: stack_outputs.json='\n${jsonContent}\n'")
                     
                     // ✅ Парсим через Groovy readJSON
                     def outputs = readJSON text: jsonContent
-
-                    printDebug("🔍 Debug: stack_outputs.json='\n${outputs}\n'")
                     
                     // ✅ Ищем server_private_ip
                     def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }

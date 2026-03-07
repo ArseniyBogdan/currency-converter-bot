@@ -48,13 +48,39 @@ pipeline {
                     if (!params.IMAGE_NAME) {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
                         
-                        copyArtifacts projectName: BUILD_ARTIFACT_JOB,
-                                     filter: 'docker-image.txt',
-                                     target: '.',
-                                     selector: lastSuccessful()
-                        
-                        env.DOCKER_IMAGE = sh(script: 'cat docker-image.txt', returnStdout: true).trim()
-                        printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
+                        try {
+                            printDebug("Копируем артефакты из: ${params.BUILD_ARTIFACT_JOB}")
+                            
+                            copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                                        filter: 'docker-image.txt',
+                                        target: '.',
+                                        selector: lastSuccessful(),
+                                        flatten: true
+                                        
+                            printSuccess("Артефакты скопированы успешно")
+                            
+                            // Проверяем что файл существует
+                            sh 'ls -la docker-image.txt'
+                            sh 'cat docker-image.txt'
+                            
+                            env.DOCKER_IMAGE = sh(script: 'cat docker-image.txt', returnStdout: true).trim()
+                            printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
+                            
+                        } catch (Exception e) {
+                            printError("❌ Ошибка копирования артефакта: ${e.message}")
+                            printDebug("💡 Возможные причины:")
+                            printDebug("   1. Проверьте имя проекта: ${params.BUILD_ARTIFACT_JOB}")
+                            printDebug("   2. Проверьте что артефакт существует в source job")
+                            printDebug("   3. Проверьте Permissions в Copy Artifact Plugin")
+                            
+                            // Пробуем альтернативу - читаем из переменной если есть
+                            if (env.DOCKER_IMAGE_FROM_BUILD) {
+                                env.DOCKER_IMAGE = env.DOCKER_IMAGE_FROM_BUILD
+                                printWarning("⚠️ Используем fallback значение: ${env.DOCKER_IMAGE}")
+                            } else {
+                                error("❌ Не удалось получить Docker image из build job")
+                            }
+                        }
                     } else {
                         env.DOCKER_IMAGE = params.IMAGE_NAME
                         printSuccess("Docker image из параметра: ${env.DOCKER_IMAGE}")

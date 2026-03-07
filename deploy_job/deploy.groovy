@@ -91,21 +91,46 @@ pipeline {
                     // ✅ Читаем файл
                     def jsonContent = readFile('stack_outputs.json')
                     
-                    // ✅ Парсим через Groovy readJSON
-                    def outputs = readJSON text: jsonContent
+                    // ✅ Отладка: показываем структуру
+                    echo "🔍 JSON content preview:"
+                    echo jsonContent.take(500)
                     
-                    // ✅ Ищем server_private_ip
-                    def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
+                    // ✅ Парсим через Groovy JsonSlurper (надёжнее readJSON)
+                    import groovy.json.JsonSlurper
+                    def outputs = new JsonSlurper().parseText(jsonContent)
+                    
+                    // ✅ Отладка: показываем тип и структуру
+                    echo "🔍 Parsed type: ${outputs.class}"
+                    if (outputs instanceof List) {
+                        echo "🔍 Это массив, элементов: ${outputs.size()}"
+                    } else if (outputs instanceof Map) {
+                        echo "🔍 Это объект, ключи: ${outputs.keySet()}"
+                    }
+                    
+                    // ✅ Ищем server_private_ip (работает и для массива, и для объекта)
+                    def vmIpOutput = null
+                    
+                    if (outputs instanceof List) {
+                        vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
+                    } else if (outputs instanceof Map) {
+                        // Если JSON — объект с ключами как output_key
+                        vmIpOutput = outputs.find { key, value -> key == 'server_private_ip' }
+                    }
                     
                     if (vmIpOutput) {
-                        env.VM_IP = vmIpOutput.output_value.trim()
+                        env.VM_IP = vmIpOutput.output_value?.toString()?.trim()
                         printSuccess("✅ VM IP: ${env.VM_IP}")
                     } else {
-                        echo "⚠️ Доступные outputs:"
-                        outputs.each { out ->
-                            echo "  - ${out.output_key} = ${out.output_value}"
+                        // ✅ Подробная отладка если не нашли
+                        echo "⚠️ Не найдено 'server_private_ip'. Доступные элементы:"
+                        if (outputs instanceof List) {
+                            outputs.each { out ->
+                                echo "  - output_key: ${out.output_key}, value: ${out.output_value}"
+                            }
+                        } else {
+                            echo "  ${outputs}"
                         }
-                        error("❌ Не найдено 'server_private_ip'")
+                        error("❌ Не найдено 'server_private_ip' в артефактах")
                     }
                 }
             }

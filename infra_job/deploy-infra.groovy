@@ -112,15 +112,26 @@ pipeline {
                     script {
                         printLog("Collecting stack outputs...", '📥', 36)
                         
+                        // ✅ Получаем IP напрямую (для использования в текущей джобе)
                         env.SERVER_IP = sh(
                             script: "openstack stack output show -c output_value -f value ${HEAT_STACK_NAME} server_private_ip",
                             returnStdout: true
                         ).trim()
 
+                        if (!env.SERVER_IP) {
+                            error("❌ Не удалось получить server_private_ip из стека ${HEAT_STACK_NAME}")
+                        }
+
                         printLog("Infrastructure ready at: ${env.SERVER_IP}", '🌍', 32, true)
                         
-                        sh "set +x && openstack stack output show --all ${HEAT_STACK_NAME} > stack_outputs.txt"
-                        printSuccess("Outputs saved to stack_outputs.txt")
+                        sh """
+                            openstack stack output show --format json ${HEAT_STACK_NAME} > stack_outputs.json
+                        """
+                
+                        printSuccess("Outputs saved to stack_outputs.json")
+                        
+                        // ✅ Архивируем артефакт
+                        archiveArtifacts artifacts: 'stack_outputs.json', allowEmptyArchive: false
                     }
                 }
             }

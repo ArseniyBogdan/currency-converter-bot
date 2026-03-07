@@ -49,9 +49,9 @@ pipeline {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
                         
                         try {
-                            printDebug("Копируем артефакты из: ${params.BUILD_ARTIFACT_JOB}")
+                            printDebug("Копируем артефакты из: ${BUILD_ARTIFACT_JOB}")
                             
-                            copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                            copyArtifacts projectName: BUILD_ARTIFACT_JOB,
                                         filter: 'docker-image.txt',
                                         target: '.',
                                         selector: lastSuccessful(),
@@ -69,7 +69,7 @@ pipeline {
                         } catch (Exception e) {
                             printError("❌ Ошибка копирования артефакта: ${e.message}")
                             printDebug("💡 Возможные причины:")
-                            printDebug("   1. Проверьте имя проекта: ${params.BUILD_ARTIFACT_JOB}")
+                            printDebug("   1. Проверьте имя проекта: ${BUILD_ARTIFACT_JOB}")
                             printDebug("   2. Проверьте что артефакт существует в source job")
                             printDebug("   3. Проверьте Permissions в Copy Artifact Plugin")
                             

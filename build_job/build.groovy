@@ -42,11 +42,12 @@ pipeline {
                 script {
                     // Формируем полное имя образа
                     env.DOCKER_IMAGE = "${DOCKER_REGISTRY}/${DOCKER_REPO}:${IMAGE_TAG}"
+                    env.DOCKER_IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPO}:latest"
 
                     sh """
                         docker build \
-                            -t ${env.DOCKER_IMAGE}:${IMAGE_TAG} \
-                            -t ${env.DOCKER_IMAGE}:latest \
+                            -t ${env.DOCKER_IMAGE} \
+                            -t ${env.DOCKER_IMAGE_LATEST} \
                             -f Dockerfile \
                             .
                     """
@@ -57,11 +58,6 @@ pipeline {
         stage('Docker Push') {
             steps {
                 echo '🚀 Публикация образа в Docker Hub...'
-                script {
-                    // Формируем тег из номера билда если не задан
-                    
-                    env.DOCKER_IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPO}:latest"
-                }
                 withCredentials([usernamePassword(
                     credentialsId: 'DockerHubArseniy',
                     usernameVariable: 'DOCKER_USER',

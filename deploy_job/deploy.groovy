@@ -92,7 +92,7 @@ pipeline {
                                  selector: lastSuccessful()
                     
                     env.VM_IP = sh(script: '''
-                        cat stack-outputs.txt | \
+                        cat stack_outputs.txt | \
                         python3 -c "import sys, json; data=json.load(sys.stdin); \
                         print([o['output_value'] for o in data if o['output_key']=='server_private_ip'][0])" 2>/dev/null || echo ""
                     ''', returnStdout: true).trim()

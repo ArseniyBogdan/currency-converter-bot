@@ -15,8 +15,8 @@ pipeline {
         DOCKER_IMAGE = ''
         VM_IP = ''
 
-        INFRA_ARTIFACT_JOB = 'Bogdan/job/create-infra'
-        BUILD_ARTIFACT_JOB = 'Bogdan/job/deploy'
+        INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
+        BUILD_ARTIFACT_JOB = 'Bogdan/deploy'
     }
     
     parameters {

@@ -49,7 +49,7 @@ pipeline {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
                 
                         try {
-                            copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                            copyArtifacts projectName: BUILD_ARTIFACT_JOB,
                                         filter: 'docker-image.txt',
                                         target: '.',
                                         selector: lastSuccessful(),

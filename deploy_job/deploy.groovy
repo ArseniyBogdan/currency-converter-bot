@@ -91,14 +91,9 @@ pipeline {
                     // ✅ Читаем файл
                     def jsonContent = readFile('stack_outputs.json')
                     
-                    // ✅ Отладка: показываем структуру
-                    echo "🔍 JSON content preview:"
-                    echo jsonContent.take(500)
-                    
-                    // ✅ Парсим через Groovy JsonSlurper (надёжнее readJSON)
-                    import groovy.json.JsonSlurper
-                    def outputs = new JsonSlurper().parseText(jsonContent)
-                    
+                    // ✅ Парсим через Groovy readJSON
+                    def outputs = readJSON text: jsonContent
+
                     // ✅ Отладка: показываем тип и структуру
                     echo "🔍 Parsed type: ${outputs.class}"
                     if (outputs instanceof List) {
@@ -117,20 +112,18 @@ pipeline {
                         vmIpOutput = outputs.find { key, value -> key == 'server_private_ip' }
                     }
                     
+                    // ✅ Ищем server_private_ip
+                    def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
+                    
                     if (vmIpOutput) {
-                        env.VM_IP = vmIpOutput.output_value?.toString()?.trim()
+                        env.VM_IP = vmIpOutput.output_value.trim()
                         printSuccess("✅ VM IP: ${env.VM_IP}")
                     } else {
-                        // ✅ Подробная отладка если не нашли
-                        echo "⚠️ Не найдено 'server_private_ip'. Доступные элементы:"
-                        if (outputs instanceof List) {
-                            outputs.each { out ->
-                                echo "  - output_key: ${out.output_key}, value: ${out.output_value}"
-                            }
-                        } else {
-                            echo "  ${outputs}"
+                        echo "⚠️ Доступные outputs:"
+                        outputs.each { out ->
+                            echo "  - ${out.output_key} = ${out.output_value}"
                         }
-                        error("❌ Не найдено 'server_private_ip' в артефактах")
+                        error("❌ Не найдено 'server_private_ip'")
                     }
                 }
             }

@@ -7,17 +7,23 @@ pipeline {
         
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
-        VM_IP = ''
+        
+        // Имя credentials в Jenkins (SSH Username with private key)
+        SSH_KEY_NAME = 'arseniy_jenkins'
+        
+        // Будут заполнены из артефактов
         DOCKER_IMAGE = ''
-    }
+        VM_IP = ''
 
+        INFRA_ARTIFACT_JOB = 'Bogdan/job/create-infra'
+        BUILD_ARTIFACT_JOB = 'Bogdan/job/deploy'
+    }
+    
     parameters {
-        string(name: 'IMAGE_NAME', defaultValue: '', description: 'Docker image name (optional, если пусто - берётся из last successful build)')
-        string(name: 'STACK_NAME', defaultValue: 'currency-converter-stack', description: 'OpenStack stack name')
+        string(name: 'IMAGE_NAME', defaultValue: '', description: 'Docker image name (optional, если пусто - берётся из build job)')
     }
     
     stages {
-
         stage('Prepare OpenStack Env') {
             steps {
                 ansiColor('xterm') {
@@ -33,93 +39,133 @@ pipeline {
             }
         }
 
-        stage('Download Artifact from L2') {
-            steps {
-                // Копируем артефакт из предыдущей джобы
-                copyArtifacts projectName: 'currency-converter-bot-build',
-                             filter: '**/*.jar',
-                             target: 'artifacts/',
-                             selector: lastSuccessful()
-                script {
-                    env.ARTIFACT_FILE = sh(script: 'ls artifacts/*.jar', returnStdout: true).trim()
-                    echo "Artifact found: ${env.ARTIFACT_FILE}"
-                }
-            }
-        }
-        
-        stage('Deploy Infrastructure via Heat') {
+        // ========================================================================
+        // 📦 Получаем Docker Image из Build Job
+        // ========================================================================
+        stage('Get Docker Image from Build Job') {
             steps {
                 script {
-                    // Устанавливаем OpenStack CLI
-                    sh '''
-                        pip install python-openstackclient python-heatclient
-                    '''
-                    
-                    // Аутентификация в OpenStack
-                    sh '''
-                        export OS_AUTH_URL=${OPENSTACK_AUTH_URL}
-                        export OS_USERNAME=${OPENSTACK_USERNAME}
-                        export OS_PASSWORD=${OPENSTACK_PASSWORD}
-                        export OS_PROJECT_NAME=${OPENSTACK_PROJECT}
-                        export OS_IDENTITY_API_VERSION=3
-                        export OS_USER_DOMAIN_NAME=Default
-                        export OS_PROJECT_DOMAIN_NAME=Default
-                    '''
-                    
-                    // Проверяем是否存在 стек, если нет - создаём
-                    env.STACK_EXISTS = sh(script: '''
-                        openstack stack show ${STACK_NAME} --format value -c stack_status 2>/dev/null || echo "NOT_EXISTS"
-                    ''', returnStdout: true).trim()
-                    
-                    if (env.STACK_EXISTS == "NOT_EXISTS" || env.STACK_EXISTS.contains("FAILED")) {
-                        echo "Stack not exists or failed. Creating new stack..."
-                        sh '''
-                            openstack stack create -t heat/deploy-infra.yaml ${STACK_NAME}
-                            # Ждём пока стек создастся
-                            openstack stack wait ${STACK_NAME}
-                        '''
+                    if (!params.IMAGE_NAME) {
+                        printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
+                        
+                        copyArtifacts projectName: BUILD_ARTIFACT_JOB,
+                                     filter: 'docker-image.txt',
+                                     target: '.',
+                                     selector: lastSuccessful()
+                        
+                        env.DOCKER_IMAGE = sh(script: 'cat docker-image.txt', returnStdout: true).trim()
+                        printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
                     } else {
-                        echo "Stack ${STACK_NAME} already exists with status: ${STACK_EXISTS}"
+                        env.DOCKER_IMAGE = params.IMAGE_NAME
+                        printSuccess("Docker image из параметра: ${env.DOCKER_IMAGE}")
                     }
                 }
             }
         }
         
-        stage('Get VM IP from Stack') {
+        // ========================================================================
+        // 🖥️ Получаем VM IP из Infra Job
+        // ========================================================================
+        stage('Get VM IP from Infra Job') {
             steps {
                 script {
-                    // Получаем IP адрес VM из стека
+                    printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
+                    
+                    copyArtifacts projectName: INFRA_ARTIFACT_JOB,
+                                 filter: 'stack-outputs.txt',
+                                 target: '.',
+                                 selector: lastSuccessful()
+                    
                     env.VM_IP = sh(script: '''
-                        openstack stack output show -c output_value ${STACK_NAME} vm_ip --format value
+                        cat stack-outputs.txt | \
+                        python3 -c "import sys, json; data=json.load(sys.stdin); \
+                        print([o['output_value'] for o in data if o['output_key']=='server_private_ip'][0])" 2>/dev/null || echo ""
                     ''', returnStdout: true).trim()
-                    echo "VM IP: ${env.VM_IP}"
+                    
+                    if (!env.VM_IP) {
+                        error("❌ Не удалось получить VM_IP из артефактов!")
+                    }
+                    
+                    printSuccess("VM IP: ${env.VM_IP}")
                 }
             }
         }
         
-        stage('Transfer Artifact to VM') {
+        // ========================================================================
+        // 🔐 Проверяем доступность VM
+        // ========================================================================
+        stage('Check VM Accessibility') {
             steps {
                 script {
-                    // Передаём JAR файл на VM через SCP
-                    sh '''
-                        scp -o StrictHostKeyChecking=no -i ${KEY_PATH} ${ARTIFACT_FILE} ubuntu@${VM_IP}:/opt/app/
-                    '''
+                    printLog("Проверка доступности VM...", '🔍', 36)
+                    sh """
+                        for i in {1..5}; do
+                            if ping -c 1 -W 2 ${env.VM_IP} > /dev/null 2>&1; then
+                                echo "✅ VM доступен"
+                                exit 0
+                            fi
+                            echo "⏳ Попытка \$i... VM ещё не доступен"
+                            sleep 5
+                        done
+                        echo "⚠️ VM не ответил на ping, продолжаем..."
+                    """
                 }
             }
         }
         
-        stage('Restart Application') {
+        // ========================================================================
+        // 🐳 Pull Docker Image на VM (с SSH ключом из Jenkins)
+        // ========================================================================
+        stage('Pull Docker Image on VM') {
+            steps {
+                // Используем ssh-agent для работы с SSH ключом из credentials
+                sshagent(["${SSH_KEY_NAME}"]) {
+                    script {
+                        printLog("Pull Docker образа на VM...", '🐳', 36)
+                        sh """
+                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
+                                cd /opt/app
+                                
+                                echo "📥 Pull образа: ${env.DOCKER_IMAGE}"
+                                docker pull ${env.DOCKER_IMAGE}
+                                
+                                # Обновляем docker-compose.yaml с новым образом
+                                sed -i "s|image:.*|image: ${env.DOCKER_IMAGE}|g" docker-compose.yaml
+                                
+                                # Перезапускаем контейнеры
+                                docker-compose down
+                                docker-compose up -d
+                                
+                                # Cleanup старых образов
+                                docker image prune -f
+                                
+                                echo "✅ Container обновлён"
+                            EOF
+                        """
+                    }
+                }
+            }
+        }
+        
+        // ========================================================================
+        // ❤️ Health Check
+        // ========================================================================
+        stage('Health Check') {
             steps {
                 script {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no -i ${KEY_PATH} ubuntu@${VM_IP} << 'EOF'
-                            cd /opt/app
-                            # Копируем JAR в Docker volume или обновляем образ
-                            docker-compose pull
-                            docker-compose up -d --force-recreate
-                            docker-compose logs -f
-                        EOF
-                    '''
+                    printLog("Проверка здоровья приложения...", '❤️', 36)
+                    sh """
+                        for i in {1..10}; do
+                            if curl -s http://${env.VM_IP}:8081/healthcheck > /dev/null 2>&1; then
+                                echo "✅ Application is healthy!"
+                                exit 0
+                            fi
+                            echo "⏳ Попытка \$i... Ждём приложение"
+                            sleep 5
+                        done
+                        echo "❌ Health check failed!"
+                        exit 1
+                    """
                 }
             }
         }
@@ -127,14 +173,17 @@ pipeline {
     
     post {
         always {
-            echo "Deployment completed"
+            printLog("Deployment completed", '📊', 36)
+            cleanWs()
         }
         failure {
-            echo "Deployment failed! Check logs."
+            printError("Deployment failed! Check logs.")
+        }
+        success {
+            printSuccess("Deployment successful! Image: ${env.DOCKER_IMAGE}, VM: ${env.VM_IP}")
         }
     }
 }
-
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -175,7 +224,7 @@ def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
         def content = SECRET_BLOB
         
-        content.split(' ').each { rawLine ->
+        content.split('\n').each { rawLine ->
             try {
                 def line = rawLine.trim()
                 if (!line || line.startsWith('#')) return

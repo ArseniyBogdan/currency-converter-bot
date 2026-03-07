@@ -55,10 +55,9 @@ pipeline {
                                     flatten: true
                         
                         // ✅ Читаем через промежуточную переменную
-                        def rawContent = readFile('docker-image.txt')
-                        echo "🔍 Debug: raw content = '${rawContent}'"
+                        def allLines = readFile('docker-image.txt').readLines()
                         
-                        env.DOCKER_IMAGE = rawContent.trim()
+                        env.DOCKER_IMAGE = allLines.find { it.trim() }?.trim()
                         echo "🔍 Debug: DOCKER_IMAGE = '${env.DOCKER_IMAGE}'"
                         
                         if (!env.DOCKER_IMAGE) {

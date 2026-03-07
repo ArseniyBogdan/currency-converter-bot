@@ -75,15 +75,15 @@ pipeline {
                         echo "\${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY} -u "\${DOCKER_USER}" --password-stdin
                         
                         # Tag образа с версией и latest
-                        docker tag ${DOCKER_REPO}:local ${DOCKER_IMAGE}
-                        docker tag ${DOCKER_REPO}:local ${DOCKER_IMAGE_LATEST}
+                        docker tag ${DOCKER_REPO}:local ${env.DOCKER_IMAGE}
+                        docker tag ${DOCKER_REPO}:local ${env.DOCKER_IMAGE_LATEST}
                         
                         # Push обоих тегов
-                        docker push ${DOCKER_IMAGE}
-                        docker push ${DOCKER_IMAGE_LATEST}
+                        docker push ${env.DOCKER_IMAGE}
+                        docker push ${env.DOCKER_IMAGE_LATEST}
                         
                         # Сохраняем имя образа в файл для deploy джобы
-                        echo "${DOCKER_IMAGE}" > docker-image.txt
+                        echo "${env.DOCKER_IMAGE}" > docker-image.txt
                         
                         # Выход из реестра
                         docker logout ${DOCKER_REGISTRY}

@@ -112,8 +112,6 @@ pipeline {
                         vmIpOutput = outputs.find { key, value -> key == 'server_private_ip' }
                     }
                     
-                    // ✅ Ищем server_private_ip
-                    def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
                     
                     if (vmIpOutput) {
                         env.VM_IP = vmIpOutput.output_value.trim()

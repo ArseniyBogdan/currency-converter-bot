@@ -56,7 +56,7 @@ pipeline {
                                         flatten: true
                             
                             // ✅ Читаем в ЛОКАЛЬНУЮ переменную сначала
-                            def imageContent = readFile('docker-image.txt')
+                            def imageContent = readFile('docker-image.txt').replace('\n', '')
                             echo "🔍 Debug: прочитано='${imageContent}', length=${imageContent.length()}"
                             
                             // ✅ Потом trim и присваиваем в env

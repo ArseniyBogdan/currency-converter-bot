@@ -95,7 +95,7 @@ pipeline {
                     def outputs = readJSON text: jsonContent
                     
                     // ✅ Ищем server_private_ip (работает и для массива, и для объекта)
-                    def vmIpOutput = outputs['server_private_ip']
+                    def vmIpOutput = readJSON text: outputs['server_private_ip']
                     
                     if (vmIpOutput) {
                         env.VM_IP = vmIpOutput['output_value'].trim()

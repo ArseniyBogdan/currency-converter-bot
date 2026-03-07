@@ -63,23 +63,12 @@ pipeline {
                             sh 'ls -la docker-image.txt'
                             sh 'cat docker-image.txt'
                             
-                            env.DOCKER_IMAGE = sh(script: 'cat docker-image.txt', returnStdout: true).trim()
+                            env.DOCKER_IMAGE = readFile('docker-image.txt').trim()
                             printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
                             
                         } catch (Exception e) {
                             printError("❌ Ошибка копирования артефакта: ${e.message}")
-                            printDebug("💡 Возможные причины:")
-                            printDebug("   1. Проверьте имя проекта: ${BUILD_ARTIFACT_JOB}")
-                            printDebug("   2. Проверьте что артефакт существует в source job")
-                            printDebug("   3. Проверьте Permissions в Copy Artifact Plugin")
-                            
-                            // Пробуем альтернативу - читаем из переменной если есть
-                            if (env.DOCKER_IMAGE_FROM_BUILD) {
-                                env.DOCKER_IMAGE = env.DOCKER_IMAGE_FROM_BUILD
-                                printWarning("⚠️ Используем fallback значение: ${env.DOCKER_IMAGE}")
-                            } else {
-                                error("❌ Не удалось получить Docker image из build job")
-                            }
+                            error("❌ Не удалось получить Docker image из build job")
                         }
                     } else {
                         env.DOCKER_IMAGE = params.IMAGE_NAME
@@ -98,7 +87,7 @@ pipeline {
                     printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
                     
                     copyArtifacts projectName: INFRA_ARTIFACT_JOB,
-                                 filter: 'stack-outputs.txt',
+                                 filter: 'stack_outputs.txt',
                                  target: '.',
                                  selector: lastSuccessful()
                     

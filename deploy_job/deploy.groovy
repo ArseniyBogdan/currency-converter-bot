@@ -60,7 +60,7 @@ pipeline {
                             echo "🔍 Debug: прочитано='${imageContent}', length=${imageContent.length()}"
                             
                             // ✅ Потом trim и присваиваем в env
-                            env.DOCKER_IMAGE = imageContent.trim()
+                            env.DOCKER_IMAGE = imageContent
                             
                             // ✅ Проверяем что записалось
                             echo "🔍 Debug: env.DOCKER_IMAGE='${env.DOCKER_IMAGE}'"

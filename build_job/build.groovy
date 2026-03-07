@@ -36,13 +36,6 @@ pipeline {
             }
         }
 
-        stage('Archive Artifact') {
-            steps {
-                echo '📦 Архивируем JAR-артефакт...'
-                archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true, allowEmptyArchive: false
-            }
-        }
-
         stage('Docker Build') {
             steps {
                 echo '🐳 Сборка Docker-образа...'

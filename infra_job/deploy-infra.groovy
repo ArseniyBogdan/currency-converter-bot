@@ -5,8 +5,8 @@ pipeline {
     
     environment {
         OS_CREDENTIALS_ID = 'rc-credentials-arseniy'
-        HEAT_STACK_NAME = "currency-converter-bot-infra"
-        HEAT_TEMPLATE = 'heat/deploy-infra.yaml'
+        HEAT_STACK_NAME = "currency-converter-bot-infra-arseniy"
+        HEAT_TEMPLATE = 'infra_job/heat/deploy-infra.yaml'
 
         // === Параметры Heat-шаблона ===
         OS_IMAGE_ID = 'ununtu-22.04'

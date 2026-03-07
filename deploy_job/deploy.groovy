@@ -103,14 +103,7 @@ pipeline {
                     }
                     
                     // ✅ Ищем server_private_ip (работает и для массива, и для объекта)
-                    def vmIpOutput = null
-                    
-                    if (outputs instanceof List) {
-                        vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
-                    } else if (outputs instanceof Map) {
-                        // Если JSON — объект с ключами как output_key
-                        vmIpOutput = outputs.find { key, value -> key == 'server_private_ip' }
-                    }
+                    def vmIpOutput = outputs['server_private_ip']
                     
                     
                     if (vmIpOutput) {

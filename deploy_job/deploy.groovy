@@ -90,8 +90,6 @@ pipeline {
                     
                     // ✅ Читаем файл
                     def jsonContent = readFile('stack_outputs.json')
-
-                    printDebug("🔍 Debug: stack_outputs.json='\n${jsonContent}\n'")
                     
                     // ✅ Парсим через Groovy readJSON
                     def outputs = readJSON text: jsonContent

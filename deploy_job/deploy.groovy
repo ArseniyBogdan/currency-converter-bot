@@ -47,24 +47,34 @@ pipeline {
                 script {
                     if (!params.IMAGE_NAME) {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
-                        
-                        copyArtifacts projectName: BUILD_ARTIFACT_JOB,
-                                    filter: 'docker-image.txt',
-                                    target: '.',
-                                    selector: lastSuccessful(),
-                                    flatten: true
-                        
-                        // ✅ Читаем через промежуточную переменную
-                        def allLines = readFile('docker-image.txt').readLines()
-                        
-                        env.DOCKER_IMAGE = allLines.find { it.trim() }?.trim()
-                        echo "🔍 Debug: DOCKER_IMAGE = '${env.DOCKER_IMAGE}'"
-                        
-                        if (!env.DOCKER_IMAGE) {
-                            error("❌ Файл docker-image.txt пустой!")
+                
+                        try {
+                            copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                                        filter: 'docker-image.txt',
+                                        target: '.',
+                                        selector: lastSuccessful(),
+                                        flatten: true
+                            
+                            // ✅ Читаем в ЛОКАЛЬНУЮ переменную сначала
+                            def imageContent = readFile('docker-image.txt')
+                            echo "🔍 Debug: прочитано='${imageContent}', length=${imageContent.length()}"
+                            
+                            // ✅ Потом trim и присваиваем в env
+                            env.DOCKER_IMAGE = imageContent.trim()
+                            
+                            // ✅ Проверяем что записалось
+                            echo "🔍 Debug: env.DOCKER_IMAGE='${env.DOCKER_IMAGE}'"
+                            
+                            if (!env.DOCKER_IMAGE) {
+                                error("❌ Файл docker-image.txt пустой!")
+                            }
+                            
+                            printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
+                            
+                        } catch (Exception e) {
+                            printError("❌ Ошибка: ${e.message}")
+                            throw e
                         }
-                        
-                        printSuccess("✅ Docker image из build: ${env.DOCKER_IMAGE}")
                     } else {
                         env.DOCKER_IMAGE = params.IMAGE_NAME
                         printSuccess("✅ Docker image из параметра: ${env.DOCKER_IMAGE}")

@@ -83,18 +83,18 @@ pipeline {
                     printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
                     
                     copyArtifacts projectName: INFRA_ARTIFACT_JOB,
-                                filter: 'stack_outputs.txt',
+                                filter: 'stack_outputs.json',
                                 target: '.',
                                 selector: lastSuccessful(),
                                 flatten: true
                     
                     // ✅ Читаем файл
-                    def jsonContent = readFile('stack_outputs.txt')
+                    def jsonContent = readFile('stack_outputs.json')
                     
                     // ✅ Парсим через Groovy readJSON
                     def outputs = readJSON text: jsonContent
 
-                    printDebug("🔍 Debug: stack_outputs.txt='\n${outputs}\n'")
+                    printDebug("🔍 Debug: stack_outputs.json='\n${outputs}\n'")
                     
                     // ✅ Ищем server_private_ip
                     def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }

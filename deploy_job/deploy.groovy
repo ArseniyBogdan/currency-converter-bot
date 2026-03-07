@@ -224,7 +224,7 @@ def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
         def content = SECRET_BLOB
         
-        content.split('\n').each { rawLine ->
+        content.split(' ').each { rawLine ->
             try {
                 def line = rawLine.trim()
                 if (!line || line.startsWith('#')) return

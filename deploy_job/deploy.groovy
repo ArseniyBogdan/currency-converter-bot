@@ -107,7 +107,7 @@ pipeline {
                     
                     
                     if (vmIpOutput) {
-                        env.VM_IP = vmIpOutput.output_value.trim()
+                        env.VM_IP = vmIpOutput.trim()
                         printSuccess("✅ VM IP: ${env.VM_IP}")
                     } else {
                         echo "⚠️ Доступные outputs:"

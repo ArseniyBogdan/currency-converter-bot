@@ -125,7 +125,7 @@ pipeline {
                         printLog("Infrastructure ready at: ${env.SERVER_IP}", '🌍', 32, true)
                         
                         sh """
-                            openstack stack output show --format json ${HEAT_STACK_NAME} > stack_outputs.json
+                            openstack stack output show --all --format json ${HEAT_STACK_NAME} > stack_outputs.json
                         """
                 
                         printSuccess("Outputs saved to stack_outputs.json")

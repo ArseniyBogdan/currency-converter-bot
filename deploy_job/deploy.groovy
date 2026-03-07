@@ -48,7 +48,7 @@ pipeline {
                     if (!params.IMAGE_NAME) {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
                         
-                        copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                        copyArtifacts projectName: BUILD_ARTIFACT_JOB,
                                     filter: 'docker-image.txt',
                                     target: '.',
                                     selector: lastSuccessful(),
@@ -82,7 +82,7 @@ pipeline {
                 script {
                     printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
                     
-                    copyArtifacts projectName: params.INFRA_ARTIFACT_JOB,
+                    copyArtifacts projectName: INFRA_ARTIFACT_JOB,
                                 filter: 'stack_outputs.txt',
                                 target: '.',
                                 selector: lastSuccessful(),

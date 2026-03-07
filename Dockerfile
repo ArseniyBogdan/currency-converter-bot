@@ -1,4 +1,4 @@
-FROM openjdk:24
+FROM eclipse-temurin:25-jdk
 WORKDIR /app
 # The application's jar file
 ARG JAR_FILE=./build/libs/currency-converter-bot-0.0.jar

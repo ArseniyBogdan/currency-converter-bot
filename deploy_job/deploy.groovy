@@ -93,26 +93,17 @@ pipeline {
                     
                     // ✅ Парсим через Groovy readJSON
                     def outputs = readJSON text: jsonContent
-
-                    // ✅ Отладка: показываем тип и структуру
-                    echo "🔍 Parsed type: ${outputs.class}"
-                    if (outputs instanceof List) {
-                        echo "🔍 Это массив, элементов: ${outputs.size()}"
-                    } else if (outputs instanceof Map) {
-                        echo "🔍 Это объект, ключи: ${outputs.keySet()}"
-                    }
                     
                     // ✅ Ищем server_private_ip (работает и для массива, и для объекта)
                     def vmIpOutput = outputs['server_private_ip']
                     
-                    
                     if (vmIpOutput) {
-                        env.VM_IP = vmIpOutput.trim()
+                        env.VM_IP = vmIpOutput['output_value'].trim()
                         printSuccess("✅ VM IP: ${env.VM_IP}")
                     } else {
                         echo "⚠️ Доступные outputs:"
                         outputs.each { out ->
-                            echo "  - ${out.output_key} = ${out.output_value}"
+                            echo "  - ${out}"
                         }
                         error("❌ Не найдено 'server_private_ip'")
                     }

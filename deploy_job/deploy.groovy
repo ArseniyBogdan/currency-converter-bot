@@ -51,17 +51,12 @@ pipeline {
                                         selector: lastSuccessful(),
                                         flatten: true
                             
-                            // ✅ Читаем в ЛОКАЛЬНУЮ переменную сначала
-                            def imageContent = readFile('docker-image.txt').trim()
-                            echo "🔍 Debug: прочитано='${imageContent}', length=${imageContent.length()}"
+                            env.DOCKER_IMAGE = readFile('docker-image.txt').trim()
                             
-                            // ✅ Потом trim и присваиваем в env
-                            env.DOCKER_IMAGE = imageContent
-                            
-                            // ✅ Проверяем что записалось
-                            echo "🔍 Debug: env.DOCKER_IMAGE='${env.DOCKER_IMAGE}'"
+                            printDebug("🔍 Debug: env.DOCKER_IMAGE='${env.DOCKER_IMAGE}'")
                             
                             if (!env.DOCKER_IMAGE) {
+                                printError("❌ Файл docker-image.txt пустой!")
                                 error("❌ Файл docker-image.txt пустой!")
                             }
                             

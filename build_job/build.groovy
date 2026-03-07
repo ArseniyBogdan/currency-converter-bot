@@ -6,7 +6,7 @@ pipeline {
     environment {
         JAVA_HOME = '/opt/jdk/jdk-23.0.2+7'
         DOCKER_REGISTRY = 'docker.io'
-        DOCKER_IMAGE = 'arseniybogdan/currency-converter-bot'
+        DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 

@@ -41,13 +41,11 @@ pipeline {
                 echo '🐳 Сборка Docker-образа...'
                 script {
                     // Формируем полное имя образа
-                    env.DOCKER_IMAGE = "${DOCKER_REGISTRY}/${DOCKER_REPO}:${IMAGE_TAG}"
-                    env.DOCKER_IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPO}:latest"
+                    env.DOCKER_IMAGE_LOCAL = "${DOCKER_REGISTRY}/${DOCKER_REPO}:local"
 
                     sh """
                         docker build \
-                            -t ${env.DOCKER_IMAGE} \
-                            -t ${env.DOCKER_IMAGE_LATEST} \
+                            -t ${env.DOCKER_IMAGE_LOCAL} \
                             -f Dockerfile \
                             .
                     """
@@ -58,6 +56,16 @@ pipeline {
         stage('Docker Push') {
             steps {
                 echo '🚀 Публикация образа в Docker Hub...'
+                script {
+                    // Формируем тег из номера билда если не задан
+                    if (!env.IMAGE_TAG) {
+                        env.IMAGE_TAG = "build-${BUILD_NUMBER}"
+                    }
+                    
+                    // Формируем полное имя образа
+                    env.DOCKER_IMAGE = "${DOCKER_REGISTRY}/${DOCKER_REPO}:${IMAGE_TAG}"
+                    env.DOCKER_IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPO}:latest"
+                }
                 withCredentials([usernamePassword(
                     credentialsId: 'DockerHubArseniy',
                     usernameVariable: 'DOCKER_USER',
@@ -68,8 +76,8 @@ pipeline {
                         echo "\${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY} -u "\${DOCKER_USER}" --password-stdin
                         
                         # Tag образа с версией и latest
-                        docker tag ${DOCKER_REPO}:local ${env.DOCKER_IMAGE}
-                        docker tag ${DOCKER_REPO}:local ${env.DOCKER_IMAGE_LATEST}
+                        docker tag ${env.DOCKER_IMAGE_LOCAL} ${env.DOCKER_IMAGE}
+                        docker tag ${env.DOCKER_IMAGE_LOCAL} ${env.DOCKER_IMAGE_LATEST}
                         
                         # Push обоих тегов
                         docker push ${env.DOCKER_IMAGE}

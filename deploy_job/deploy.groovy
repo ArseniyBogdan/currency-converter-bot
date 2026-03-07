@@ -10,10 +10,6 @@ pipeline {
         
         // Имя credentials в Jenkins (SSH Username with private key)
         SSH_KEY_NAME = 'arseniy_jenkins'
-        
-        // Будут заполнены из артефактов
-        DOCKER_IMAGE = ''
-        VM_IP = ''
 
         INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
         BUILD_ARTIFACT_JOB = 'Bogdan/build'

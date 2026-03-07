@@ -48,36 +48,32 @@ pipeline {
                     if (!params.IMAGE_NAME) {
                         printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
                         
-                        try {
-                            printDebug("Копируем артефакты из: ${BUILD_ARTIFACT_JOB}")
-                            
-                            copyArtifacts projectName: BUILD_ARTIFACT_JOB,
-                                        filter: 'docker-image.txt',
-                                        target: '.',
-                                        selector: lastSuccessful(),
-                                        flatten: true
-                                        
-                            printSuccess("Артефакты скопированы успешно")
-                            
-                            // Проверяем что файл существует
-                            sh 'ls -la docker-image.txt'
-                            sh 'cat docker-image.txt'
-                            
-                            env.DOCKER_IMAGE = readFile('docker-image.txt').trim()
-                            printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
-                            
-                        } catch (Exception e) {
-                            printError("❌ Ошибка копирования артефакта: ${e.message}")
-                            error("❌ Не удалось получить Docker image из build job")
+                        copyArtifacts projectName: params.BUILD_ARTIFACT_JOB,
+                                    filter: 'docker-image.txt',
+                                    target: '.',
+                                    selector: lastSuccessful(),
+                                    flatten: true
+                        
+                        // ✅ Читаем через промежуточную переменную
+                        def rawContent = readFile('docker-image.txt')
+                        echo "🔍 Debug: raw content = '${rawContent}'"
+                        
+                        env.DOCKER_IMAGE = rawContent.trim()
+                        echo "🔍 Debug: DOCKER_IMAGE = '${env.DOCKER_IMAGE}'"
+                        
+                        if (!env.DOCKER_IMAGE) {
+                            error("❌ Файл docker-image.txt пустой!")
                         }
+                        
+                        printSuccess("✅ Docker image из build: ${env.DOCKER_IMAGE}")
                     } else {
                         env.DOCKER_IMAGE = params.IMAGE_NAME
-                        printSuccess("Docker image из параметра: ${env.DOCKER_IMAGE}")
+                        printSuccess("✅ Docker image из параметра: ${env.DOCKER_IMAGE}")
                     }
                 }
             }
         }
-        
+
         // ========================================================================
         // 🖥️ Получаем VM IP из Infra Job
         // ========================================================================
@@ -86,22 +82,31 @@ pipeline {
                 script {
                     printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
                     
-                    copyArtifacts projectName: INFRA_ARTIFACT_JOB,
-                                 filter: 'stack_outputs.txt',
-                                 target: '.',
-                                 selector: lastSuccessful()
+                    copyArtifacts projectName: params.INFRA_ARTIFACT_JOB,
+                                filter: 'stack_outputs.txt',
+                                target: '.',
+                                selector: lastSuccessful(),
+                                flatten: true
                     
-                    env.VM_IP = sh(script: '''
-                        cat stack_outputs.txt | \
-                        python3 -c "import sys, json; data=json.load(sys.stdin); \
-                        print([o['output_value'] for o in data if o['output_key']=='server_private_ip'][0])" 2>/dev/null || echo ""
-                    ''', returnStdout: true).trim()
+                    // ✅ Читаем файл
+                    def jsonContent = readFile('stack_outputs.txt')
                     
-                    if (!env.VM_IP) {
-                        error("❌ Не удалось получить VM_IP из артефактов!")
+                    // ✅ Парсим через Groovy readJSON
+                    def outputs = readJSON text: jsonContent
+                    
+                    // ✅ Ищем server_private_ip
+                    def vmIpOutput = outputs.find { it.output_key == 'server_private_ip' }
+                    
+                    if (vmIpOutput) {
+                        env.VM_IP = vmIpOutput.output_value.trim()
+                        printSuccess("✅ VM IP: ${env.VM_IP}")
+                    } else {
+                        echo "⚠️ Доступные outputs:"
+                        outputs.each { out ->
+                            echo "  - ${out.output_key} = ${out.output_value}"
+                        }
+                        error("❌ Не найдено 'server_private_ip'")
                     }
-                    
-                    printSuccess("VM IP: ${env.VM_IP}")
                 }
             }
         }

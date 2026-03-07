@@ -16,7 +16,7 @@ pipeline {
         VM_IP = ''
 
         INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
-        BUILD_ARTIFACT_JOB = 'Bogdan/deploy'
+        BUILD_ARTIFACT_JOB = 'Bogdan/build'
     }
     
     parameters {

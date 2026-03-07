@@ -40,11 +40,13 @@ pipeline {
             steps {
                 echo '🐳 Сборка Docker-образа...'
                 script {
-                    // Собираем образ с локальным тегом
+                    // Формируем полное имя образа
+                    env.DOCKER_IMAGE = "${DOCKER_REGISTRY}/${DOCKER_REPO}:${IMAGE_TAG}"
+
                     sh """
                         docker build \
-                            -t ${DOCKER_IMAGE}:${IMAGE_TAG} \
-                            -t ${DOCKER_IMAGE}:latest \
+                            -t ${env.DOCKER_IMAGE}:${IMAGE_TAG} \
+                            -t ${env.DOCKER_IMAGE}:latest \
                             -f Dockerfile \
                             .
                     """
@@ -57,12 +59,7 @@ pipeline {
                 echo '🚀 Публикация образа в Docker Hub...'
                 script {
                     // Формируем тег из номера билда если не задан
-                    if (!env.IMAGE_TAG) {
-                        env.IMAGE_TAG = "build-${BUILD_NUMBER}"
-                    }
                     
-                    // Формируем полное имя образа
-                    env.DOCKER_IMAGE = "${DOCKER_REGISTRY}/${DOCKER_REPO}:${IMAGE_TAG}"
                     env.DOCKER_IMAGE_LATEST = "${DOCKER_REGISTRY}/${DOCKER_REPO}:latest"
                 }
                 withCredentials([usernamePassword(

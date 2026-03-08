@@ -9,7 +9,7 @@ pipeline {
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         
         // Имя credentials в Jenkins (SSH Username with private key)
-        SSH_KEY_NAME = 'ch_opstack_ssh_key'
+        SSH_KEY_NAME = 'Arseniy'
 
         INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
         BUILD_ARTIFACT_JOB = 'Bogdan/build'

@@ -71,9 +71,14 @@ resources:
           template: |
             #!/bin/bash
             exec > /var/log/cloud-init-output.log 2>&1
-            
+
+            echo "=== Cloud-init started at $(date) ==="
+            echo "=== Hostname: $(hostname) ==="
+
             # Ждём готовности сети
             cloud-init status --wait || true
+
+            echo "=== Устанавливаем зависимости ==="
             
             # Скачиваем и запускаем скрипт настройки
             curl -fsSL https://raw.githubusercontent.com/ArseniyBogdan/currency-converter-bot/jenkins/scripts/install-deps.sh -o /tmp/setup.sh

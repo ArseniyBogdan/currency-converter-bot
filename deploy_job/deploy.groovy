@@ -9,7 +9,7 @@ pipeline {
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         
         // Имя credentials в Jenkins (SSH Username with private key)
-        SSH_KEY_NAME = 'Arseniy2'
+        SSH_KEY_NAME = 'ubuntu'
 
         INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
         BUILD_ARTIFACT_JOB = 'Bogdan/build'
@@ -121,7 +121,7 @@ pipeline {
                     script {
                         printLog("Pull Docker образа на VM...", '🐳', 36)
                         sh """
-                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null arseniy_jenkins@${env.VM_IP} << 'EOF'
+                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
                                 cd /opt/app
                                 
                                 echo "📥 Pull образа: ${env.DOCKER_IMAGE}"

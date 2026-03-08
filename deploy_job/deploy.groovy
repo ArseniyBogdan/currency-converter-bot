@@ -122,7 +122,7 @@ pipeline {
                         printLog("Pull Docker образа на VM...", '🐳', 36)
                         sh """
                             ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
-                                cd /opt/app
+                                cd /opt/currency-converter-bot
                                 
                                 echo "📥 Pull образа: ${env.DOCKER_IMAGE}"
                                 docker pull ${env.DOCKER_IMAGE}

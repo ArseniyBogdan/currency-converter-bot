@@ -120,29 +120,7 @@ mount_volume "/dev/vdb" "/var/lib/mongodb" "mongodb" "mongodb"
 # 🔹 RabbitMQ: /dev/vdc → /var/lib/rabbitmq  
 mount_volume "/dev/vdc" "/var/lib/rabbitmq" "rabbitmq" "rabbitmq"
 
-# =============================================================================
-# 5. 👤 Пользователь для Docker (без sudo)
-# =============================================================================
-log "👤 Настройка доступа к Docker..."
-
-# Создаём пользователя botuser если нет
-if ! id -u botuser &>/dev/null; then
-    useradd -m -s /bin/bash botuser
-fi
-
-# Добавляем в группу docker
-usermod -aG docker botuser
-
-# Копируем SSH-ключи если есть (для git clone)
-if [[ -d /home/ubuntu/.ssh ]]; then
-    mkdir -p /home/botuser/.ssh
-    cp -r /home/ubuntu/.ssh/* /home/botuser/.ssh/ 2>/dev/null || true
-    chmod 700 /home/botuser/.ssh
-    chmod 600 /home/botuser/.ssh/* 2>/dev/null || true
-    chown -R botuser:botuser /home/botuser/.ssh
-fi
-
-log "✅ Пользователь 'botuser' добавлен в группу docker"
+usermod -aG docker ubuntu
 
 # =============================================================================
 # 6. 📁 Подготовка директории для проекта

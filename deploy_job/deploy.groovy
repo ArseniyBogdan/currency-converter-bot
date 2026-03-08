@@ -121,7 +121,7 @@ pipeline {
                     script {
                         printLog("Pull Docker образа на VM...", '🐳', 36)
                         sh """
-                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
+                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null arseniy_jenkins@${env.VM_IP} << 'EOF'
                                 cd /opt/app
                                 
                                 echo "📥 Pull образа: ${env.DOCKER_IMAGE}"

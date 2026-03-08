@@ -63,44 +63,7 @@ log "✅ Docker: $(docker --version)"
 log "✅ Docker Compose: $(docker compose version)"
 
 # =============================================================================
-# 3. ☕ Java 23
-# =============================================================================
-log "☕ Установка Java 23"
-
-JAVA_VERSION="23.0.2+7"
-JAVA_BUILD="23.0.2+7"
-JAVA_FILENAME="OpenJDK23U-jdk_x64_linux_hotspot_${JAVA_BUILD}.tar.gz"
-JAVA_URL="https://github.com/adoptium/temurin23-binaries/releases/download/jdk-${JAVA_VERSION}/${JAVA_FILENAME}"
-JAVA_INSTALL_DIR="/opt/java/temurin-23"
-
-# Создаём директорию
-mkdir -p "${JAVA_INSTALL_DIR}"
-
-# Скачиваем только если ещё не установлено
-if [[ ! -f "${JAVA_INSTALL_DIR}/bin/java" ]]; then
-    log "⬇️  Скачивание Java 23: ${JAVA_URL}"
-    wget --progress=bar:force -O "/tmp/${JAVA_FILENAME}" "${JAVA_URL}"
-    
-    log "📦 Распаковка Java 23..."
-    tar -xzf "/tmp/${JAVA_FILENAME}" -C "${JAVA_INSTALL_DIR}" --strip-components=1
-    
-    # Очистка
-    rm -f "/tmp/${JAVA_FILENAME}"
-    
-    # Настройка JAVA_HOME
-    echo "JAVA_HOME=${JAVA_INSTALL_DIR}" >> /etc/environment
-    echo "PATH=\${JAVA_HOME}/bin:\${PATH}" >> /etc/environment
-    export JAVA_HOME="${JAVA_INSTALL_DIR}"
-    
-    log "✅ Java 23 установлена в ${JAVA_INSTALL_DIR}"
-else
-    log "✅ Java 23 уже установлена, пропускаем"
-fi
-
-log "✅ Java: $(${JAVA_INSTALL_DIR}/bin/java -version 2>&1 | head -1)"
-
-# =============================================================================
-# 4. 🗄️ Монтирование Cinder-томов для MongoDB и RabbitMQ
+# 3. 🗄️ Монтирование Cinder-томов для MongoDB и RabbitMQ
 # =============================================================================
 log "💾 Настройка томов для данных..."
 

@@ -20,6 +20,13 @@ pipeline {
     }
     
     stages {
+        stage('Checkout') {
+            steps {
+                echo '📥 Клонируем репозиторий...'
+                checkout scm
+            }
+        }
+
         stage('Prepare OpenStack Env') {
             steps {
                 ansiColor('xterm') {
@@ -119,6 +126,14 @@ pipeline {
                 // Используем ssh-agent для работы с SSH ключом из credentials
                 sshagent(["${SSH_KEY_NAME}"]) {
                     script {
+                        printLog("Pull docker-compose.yaml на VM...", '🐳', 36)
+                        sh """
+                            scp -o StrictHostKeyChecking=no \\
+                                -o UserKnownHostsFile=/dev/null \\
+                                docker-compose.yaml \\
+                                ubuntu@${env.VM_IP}:/opt/currency-converter-bot/docker-compose.yaml
+                        """
+
                         printLog("Pull Docker образа на VM...", '🐳', 36)
                         sh """
                             ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'

@@ -30,7 +30,7 @@ apt-get install -y -qq \
     apt-transport-https \
     software-properties-common \
     lsb-release \
-    xfsprogs ext4
+    xfsprogs
 
 # =============================================================================
 # 2. Docker Engine

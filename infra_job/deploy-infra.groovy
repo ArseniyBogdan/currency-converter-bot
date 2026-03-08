@@ -11,7 +11,7 @@ pipeline {
         // === Параметры Heat-шаблона ===
         OS_IMAGE_ID = 'ununtu-22.04'
         OS_FLAVOR_ID = 'm1.small'
-        SSH_KEY_NAME = 'Arseniy'
+        SSH_KEY_NAME = 'Arseniy2'
         EXISTING_SUBNET_ID = 'd80da048-c188-45a5-80e4-55d914fe58ea'
     }
 

@@ -156,7 +156,7 @@ pipeline {
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\
                                     "\${INIT_SCRIPT}" \\
-                                    ${VM_USER}@${env.VM_IP}:~/init-vailt.sh.tmp
+                                    ${VM_USER}@${env.VM_IP}:~/init-vault.sh.tmp
                             """
                         }
                         
@@ -181,9 +181,9 @@ pipeline {
 
                                 # ✅ Перемещаем .env файл с безопасными правами
                                 sudo mkdir -p \${APP_DIR}/vault/scripts
-                                sudo mv ~/init-vailt.sh.tmp \${APP_DIR}/vault/scripts/init-vailt.sh
-                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vailt.sh
-                                sudo chmod 700 \${APP_DIR}/vault/scripts/init-vailt.sh
+                                sudo mv ~/init-vault.sh.tmp \${APP_DIR}/vault/scripts/init-vault.sh
+                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vault.sh
+                                sudo chmod 700 \${APP_DIR}/vault/scripts/init-vault.sh
                                 
                                 cd \${APP_DIR}
                                 

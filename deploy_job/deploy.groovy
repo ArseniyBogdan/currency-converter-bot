@@ -137,7 +137,7 @@ pipeline {
                         printLog("Pull Docker образа на VM...", '🐳', 36)
                         sh """
                             ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
-                                mv ~/docker-compose.yaml /opt/currency-converter-bot/docker-compose.yaml
+                                sudo mv ~/docker-compose.yaml /opt/currency-converter-bot/docker-compose.yaml
                                 cd /opt/currency-converter-bot
                                 
                                 echo "📥 Pull образа: ${env.DOCKER_IMAGE}"

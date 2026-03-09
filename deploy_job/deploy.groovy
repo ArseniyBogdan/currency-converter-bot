@@ -137,6 +137,17 @@ pipeline {
                                 docker-compose.yaml \\
                                 ${VM_USER}@${env.VM_IP}:~/docker-compose.yaml.tmp
                         """
+
+                        printStep("Copying .env from credentials...")
+        
+                        withCredentials([file(credentialsId: 'currency-bot-env', variable: 'ENV_FILE')]) {
+                            sh """
+                                scp -o StrictHostKeyChecking=no \\
+                                    -o UserKnownHostsFile=/dev/null \\
+                                    "\${ENV_FILE}" \\
+                                    ${VM_USER}@${env.VM_IP}:~/.env.tmp
+                            """
+                        }
                         
                         printStep("Pulling image and restarting containers...")
                         
@@ -151,6 +162,11 @@ pipeline {
                                 echo "📁 Moving docker-compose.yaml to app directory..."
                                 sudo mv ~/docker-compose.yaml.tmp \${APP_DIR}/docker-compose.yaml
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/docker-compose.yaml
+
+                                # ✅ Перемещаем .env файл с безопасными правами
+                                sudo mv ~/.env.tmp \${APP_DIR}/.env
+                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/.env
+                                sudo chmod 600 \${APP_DIR}/.env  # 🔒 Только владелец может читать
                                 
                                 cd \${APP_DIR}
                                 

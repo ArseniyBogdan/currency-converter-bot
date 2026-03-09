@@ -144,7 +144,7 @@ pipeline {
                                 docker pull ${env.DOCKER_IMAGE}
                                 
                                 # Обновляем docker-compose.yaml с новым образом
-                                sed -i "s|image:.*|image: ${env.DOCKER_IMAGE}|g" docker-compose.yaml
+                                sudo sed 's/<image>/${env.DOCKER_IMAGE}/' docker-compose.yaml
                                 
                                 # Перезапускаем контейнеры
                                 docker-compose down

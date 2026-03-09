@@ -139,24 +139,24 @@ pipeline {
                         """
 
                         printStep("Copying .env from credentials...")
-        
+
                         withCredentials([file(credentialsId: 'currency-bot-env-arseniy', variable: 'ENV_FILE')]) {
                             sh """
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\
                                     "\${ENV_FILE}" \\
-                                    ${VM_USER}@${env.VM_IP}:~/.env.tmp
+                                    ${VM_USER}@${env.VM_IP}:/tmp/.env.tmp
                             """
                         }
 
                         printStep("Copying vault-init.sh from credentials...")
-        
+
                         withCredentials([file(credentialsId: 'vault-init-script-arseniy', variable: 'INIT_SCRIPT')]) {
                             sh """
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\
                                     "\${INIT_SCRIPT}" \\
-                                    ${VM_USER}@${env.VM_IP}:~/init-vault.sh.tmp
+                                    ${VM_USER}@${env.VM_IP}:/tmp/init-vault.sh.tmp
                             """
                         }
                         
@@ -170,18 +170,20 @@ pipeline {
                                 set -e
                                 APP_DIR="${APP_DIR}"
                                 
-                                echo "📁 Moving docker-compose.yaml to app directory..."
+                                echo "📁 Moving files to app directory..."
+                                
+                                # Перемещаем docker-compose.yaml
                                 sudo mv ~/docker-compose.yaml.tmp \${APP_DIR}/docker-compose.yaml
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/docker-compose.yaml
 
-                                # ✅ Перемещаем .env файл с безопасными правами
-                                sudo mv ~/.env.tmp \${APP_DIR}/.env
+                                # ✅ Перемещаем .env из /tmp
+                                sudo mv /tmp/.env.tmp \${APP_DIR}/.env
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/.env
-                                sudo chmod 600 \${APP_DIR}/.env  # 🔒 Только владелец может читать
+                                sudo chmod 600 \${APP_DIR}/.env
 
-                                # ✅ Перемещаем .env файл с безопасными правами
+                                # ✅ Перемещаем init-vault.sh из /tmp
                                 sudo mkdir -p \${APP_DIR}/vault/scripts
-                                sudo mv ~/init-vault.sh.tmp \${APP_DIR}/vault/scripts/init-vault.sh
+                                sudo mv /tmp/init-vault.sh.tmp \${APP_DIR}/vault/scripts/init-vault.sh
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vault.sh
                                 sudo chmod 700 \${APP_DIR}/vault/scripts/init-vault.sh
                                 
@@ -202,8 +204,7 @@ pipeline {
                                 
                                 echo "✅ Deployment complete"
 REMOTEOF
-"""    
-                        printSuccess("✅ Application deployed successfully")
+"""
                     }
                 }
             }

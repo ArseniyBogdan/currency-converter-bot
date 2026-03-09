@@ -180,7 +180,7 @@ pipeline {
                                 sudo chmod 600 \${APP_DIR}/.env  # 🔒 Только владелец может читать
 
                                 # ✅ Перемещаем .env файл с безопасными правами
-                                sudo mkdir \${APP_DIR}/vault/scripts
+                                sudo mkdir -p \${APP_DIR}/vault/scripts
                                 sudo mv ~/init-vailt.sh.tmp \${APP_DIR}/vault/scripts/init-vailt.sh
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vailt.sh
                                 sudo chmod 700 \${APP_DIR}/vault/scripts/init-vailt.sh

@@ -140,7 +140,7 @@ pipeline {
 
                         printStep("Copying .env from credentials...")
         
-                        withCredentials([file(credentialsId: 'currency-bot-env', variable: 'ENV_FILE')]) {
+                        withCredentials([file(credentialsId: 'currency-bot-env-arseniy', variable: 'ENV_FILE')]) {
                             sh """
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\

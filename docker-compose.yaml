@@ -43,6 +43,7 @@ services:
   app:
     image: <image>
     env_file: .env
+    restart: unless-stopped
     depends_on:
       mongo:
         condition: service_healthy

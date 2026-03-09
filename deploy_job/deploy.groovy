@@ -184,9 +184,8 @@ pipeline {
                                 docker image prune -f
                                 
                                 echo "✅ Deployment complete"
-                            REMOTEOF
-                        """
-                        
+REMOTEOF
+"""    
                         printSuccess("✅ Application deployed successfully")
                     }
                 }

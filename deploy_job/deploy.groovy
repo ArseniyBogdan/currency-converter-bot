@@ -148,6 +148,17 @@ pipeline {
                                     ${VM_USER}@${env.VM_IP}:~/.env.tmp
                             """
                         }
+
+                        printStep("Copying vault-init.sh from credentials...")
+        
+                        withCredentials([file(credentialsId: 'vault-init-script-arseniy', variable: 'INIT_SCRIPT')]) {
+                            sh """
+                                scp -o StrictHostKeyChecking=no \\
+                                    -o UserKnownHostsFile=/dev/null \\
+                                    "\${INIT_SCRIPT}" \\
+                                    ${VM_USER}@${env.VM_IP}:~/init-vailt.sh.tmp
+                            """
+                        }
                         
                         printStep("Pulling image and restarting containers...")
                         
@@ -167,6 +178,12 @@ pipeline {
                                 sudo mv ~/.env.tmp \${APP_DIR}/.env
                                 sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/.env
                                 sudo chmod 600 \${APP_DIR}/.env  # 🔒 Только владелец может читать
+
+                                # ✅ Перемещаем .env файл с безопасными правами
+                                sudo mkdir \${APP_DIR}/vault/scripts
+                                sudo mv ~/init-vailt.sh.tmp \${APP_DIR}/vault/scripts/init-vailt.sh
+                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vailt.sh
+                                sudo chmod 700 \${APP_DIR}/vault/scripts/init-vailt.sh
                                 
                                 cd \${APP_DIR}
                                 

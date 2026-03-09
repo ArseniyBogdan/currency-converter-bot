@@ -123,42 +123,6 @@ pipeline {
         // ========================================================================
         stage('Pull Docker Image on VM') {
             steps {
-                // Используем ssh-agent для работы с SSH ключом из credentials
-                sshagent(["${SSH_KEY_NAME}"]) {
-                    script {
-                        printLog("Pull docker-compose.yaml на VM...", '🐳', 36)
-                        sh """
-                            scp -o StrictHostKeyChecking=no \\
-                                -o UserKnownHostsFile=/dev/null \\
-                                docker-compose.yaml \\
-                                ubuntu@${env.VM_IP}:~/docker-compose.yaml
-                        """
-
-                        printLog("Pull Docker образа на VM...", '🐳', 36)
-                        sh """
-                            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@${env.VM_IP} << 'EOF'
-                                sudo mv ~/docker-compose.yaml /opt/currency-converter-bot/docker-compose.yaml
-                                cd /opt/currency-converter-bot
-                                
-                                echo "📥 Pull образа: ${env.DOCKER_IMAGE}"
-                                docker pull ${env.DOCKER_IMAGE}
-                                
-                                # Обновляем docker-compose.yaml с новым образом
-                                sudo sed 's/<image>/${env.DOCKER_IMAGE}/' docker-compose.yaml
-                                
-                                # Перезапускаем контейнеры
-                                docker-compose down
-                                docker-compose up -d
-                                
-                                # Cleanup старых образов
-                                docker image prune -f
-                                
-                                echo "✅ Container обновлён"
-                            EOF
-                        """
-                    }
-                }
-
                 sshagent(["${SSH_KEY_NAME}"]) {
                     script {
                         def VM_USER = 'ubuntu'

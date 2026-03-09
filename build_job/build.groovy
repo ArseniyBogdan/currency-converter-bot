@@ -26,7 +26,8 @@ pipeline {
                         echo '✅ Найден Gradle Wrapper'
                         sh '''
                             chmod +x ./gradlew
-                            ./gradlew clean build -x test
+                            
+                            ./gradlew clean fatJar -x test
                         '''
                     } else {
                         echo '⚠️ Gradle Wrapper не найден, используем системный gradle'

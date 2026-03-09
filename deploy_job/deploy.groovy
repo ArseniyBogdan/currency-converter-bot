@@ -158,6 +158,58 @@ pipeline {
                         """
                     }
                 }
+
+                sshagent(["${SSH_KEY_NAME}"]) {
+                    script {
+                        def VM_USER = 'ubuntu'
+                        def APP_DIR = '/opt/currency-converter-bot'
+                        
+                        printLog("Deploying to ${VM_USER}@${env.VM_IP}...", '🐳', 36)
+                        
+                        printStep("Copying docker-compose.yaml...")
+                        sh """
+                            scp -o StrictHostKeyChecking=no \\
+                                -o UserKnownHostsFile=/dev/null \\
+                                docker-compose.yaml \\
+                                ${VM_USER}@${env.VM_IP}:~/docker-compose.yaml.tmp
+                        """
+                        
+                        printStep("Pulling image and restarting containers...")
+                        
+                        sh """
+                            ssh -o StrictHostKeyChecking=no \\
+                                -o UserKnownHostsFile=/dev/null \\
+                                ${VM_USER}@${env.VM_IP} << 'REMOTEOF'
+                                
+                                set -e
+                                APP_DIR="${APP_DIR}"
+                                
+                                echo "📁 Moving docker-compose.yaml to app directory..."
+                                sudo mv ~/docker-compose.yaml.tmp \${APP_DIR}/docker-compose.yaml
+                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/docker-compose.yaml
+                                
+                                cd \${APP_DIR}
+                                
+                                echo "📥 Pulling image: ${env.DOCKER_IMAGE}"
+                                docker pull ${env.DOCKER_IMAGE}
+                                
+                                echo "🔄 Updating image tag in docker-compose.yaml"
+                                sudo sed -i "s|<image>|${env.DOCKER_IMAGE}|g" docker-compose.yaml
+                                
+                                echo "🚀 Restarting containers"
+                                docker compose down
+                                docker compose up -d
+                                
+                                echo "🧹 Cleaning up old images"
+                                docker image prune -f
+                                
+                                echo "✅ Deployment complete"
+                            REMOTEOF
+                        """
+                        
+                        printSuccess("✅ Application deployed successfully")
+                    }
+                }
             }
         }
         

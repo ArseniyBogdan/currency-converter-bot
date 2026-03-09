@@ -10,14 +10,14 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo '📥 Клонируем репозиторий...'
+                echo 'Клонируем репозиторий...'
                 checkout scm
             }
         }
 
         stage('Build & Test') {
             steps {
-                echo '🔨 Собираем проект через Gradle...'
+                echo 'Собираем проект через Gradle...'
                 script {
                     // Проверяем, есть ли gradlew в корне
                     if (fileExists('gradlew')) {
@@ -38,7 +38,7 @@ pipeline {
 
         stage('Archive Artifact') {
             steps {
-                echo '📦 Ищем и архивируем JAR файл...'
+                echo 'Ищем и архивируем JAR файл...'
                 // Для Gradle артефакты обычно лежат в build/libs/
                 archiveArtifacts artifacts: 'build/libs/*.jar', fingerprint: true, allowEmptyArchive: false
             }
@@ -47,14 +47,14 @@ pipeline {
 
     post {
         always {
-            echo '✅ Этап завершен.'
+            echo 'Этап завершен.'
             cleanWs()
         }
         failure {
-            echo '❌ Сборка провалилась! Проверьте логи выше.'
+            echo 'Сборка провалилась! Проверьте логи выше.'
         }
         success {
-            echo '🎉 Сборка успешна! Артефакт сохранен.'
+            echo 'Сборка успешна! Артефакт сохранен.'
         }
     }
 }

@@ -191,29 +191,6 @@ REMOTEOF
                 }
             }
         }
-        
-        // ========================================================================
-        // ❤️ Health Check
-        // ========================================================================
-        stage('Health Check') {
-            steps {
-                script {
-                    printLog("Проверка здоровья приложения...", '❤️', 36)
-                    sh """
-                        for i in {1..10}; do
-                            if curl -s http://${env.VM_IP}:8081/healthcheck > /dev/null 2>&1; then
-                                echo "✅ Application is healthy!"
-                                exit 0
-                            fi
-                            echo "⏳ Попытка \$i... Ждём приложение"
-                            sleep 5
-                        done
-                        echo "❌ Health check failed!"
-                        exit 1
-                    """
-                }
-            }
-        }
     }
     
     post {

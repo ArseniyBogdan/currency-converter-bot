@@ -38,21 +38,37 @@ pipeline {
         stage('Setup') {
             steps {
                 sh '''
+                    echo "🔧 Setting up tools..."
+                    
+                    # Install prerequisites
+                    sudo apt-get update -qq
+                    sudo apt-get install -y -qq wget unzip curl
+                    
                     # Install Terraform
                     if ! command -v terraform &> /dev/null; then
+                        echo "📦 Installing Terraform..."
                         wget -q https://releases.hashicorp.com/terraform/1.6.0/terraform_1.6.0_linux_amd64.zip
-                        unzip terraform_1.6.0_linux_amd64.zip
+                        unzip -o terraform_1.6.0_linux_amd64.zip
                         sudo mv terraform /usr/local/bin/
+                        rm -f terraform_1.6.0_linux_amd64.zip
+                        echo "✅ Terraform installed: $(terraform --version)"
+                    else
+                        echo "✅ Terraform already installed: $(terraform --version)"
                     fi
                     
                     # Install Ansible
                     if ! command -v ansible &> /dev/null; then
-                        sudo apt update
-                        sudo apt install -y ansible
+                        echo "📦 Installing Ansible..."
+                        sudo apt-get install -y -qq ansible
+                        echo "✅ Ansible installed: $(ansible --version | head -1)"
+                    else
+                        echo "✅ Ansible already installed: $(ansible --version | head -1)"
                     fi
                     
                     # Install Ansible Docker collection
-                    ansible-galaxy collection install community.docker
+                    echo "📦 Installing Ansible Docker collection..."
+                    ansible-galaxy collection install community.docker --force
+                    echo "✅ Setup complete!"
                 '''
             }
         }

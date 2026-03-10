@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'arseniy-agent'  
+    }
     
     environment {
         TF_VAR_os_auth_url = credentials('OS_AUTH_URL')

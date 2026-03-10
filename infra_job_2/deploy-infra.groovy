@@ -9,7 +9,7 @@ pipeline {
         TF_VAR_os_password = credentials('OS_PASSWORD')
         TF_VAR_os_project_name = credentials('OS_PROJECT_NAME')
         TF_VAR_existing_subnet_id = 'd80da048-c188-45a5-80e4-55d914fe58ea'
-        TF_VAR_ansible_ssh_private_key_file = credentials('SSH_KEY_PATH')
+        TF_VAR_ansible_ssh_private_key_file = credentials('Arseniy')
         
         STACK_NAME = "currency-converter-bot-infra-arseniy"
         TF_STATE_FILE = "terraform.tfstate"

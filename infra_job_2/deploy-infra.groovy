@@ -37,7 +37,7 @@ pipeline {
         
         stage('Terraform Init') {
             steps {
-                dir('infra_job/terraform') {
+                dir('infra_job_2/terraform') {
                     sh '''
                         terraform init -input=false
                     '''
@@ -47,7 +47,7 @@ pipeline {
         
         stage('Terraform Plan') {
             steps {
-                dir('infra_job/terraform') {
+                dir('infra_job_2/terraform') {
                     sh '''
                         terraform plan -out=tfplan -input=false -var="stack_name=${STACK_NAME}"
                     '''
@@ -57,7 +57,7 @@ pipeline {
         
         stage('Terraform Apply') {
             steps {
-                dir('infra_job/terraform') {
+                dir('infra_job_2/terraform') {
                     sh '''
                         terraform apply -input=false tfplan
                     '''
@@ -68,7 +68,7 @@ pipeline {
         stage('Get Infrastructure Outputs') {
             steps {
                 script {
-                    dir('infra_job/terraform') {
+                    dir('infra_job_2/terraform') {
                         env.SERVER_IP = sh(
                             script: 'terraform output -raw server_private_ip',
                             returnStdout: true
@@ -129,7 +129,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
                 expression { return params.ACTION == 'deploy' || params.ACTION == 'provision' }
             }
             steps {
-                dir('infra_job/ansible') {
+                dir('infra_job_2/ansible') {
                     sh '''
                         ansible-playbook -i inventory/hosts.ini playbooks/provision.yml \
                             --extra-vars "ansible_ssh_private_key_file=${TF_VAR_ansible_ssh_private_key_file}"
@@ -143,7 +143,7 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
         always {
             echo "📊 Deployment completed"
             
-            archiveArtifacts artifacts: 'infra_job/terraform/*.tfstate', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'infra_job_2/terraform/*.tfstate', allowEmptyArchive: true
             cleanWs()
             
         }

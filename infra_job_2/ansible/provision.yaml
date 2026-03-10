@@ -1,0 +1,74 @@
+---
+- name: Provision VM for Currency Converter Bot
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  vars:
+    app_dir: /opt/currency-converter-bot
+    docker_user: ubuntu
+    
+  pre_tasks:
+    - name: Wait for cloud-init to complete
+      command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+      
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+        
+  roles:
+    - role: docker
+    - role: app
+    
+  tasks:
+    - name: Create app directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ docker_user }}"
+        group: "{{ docker_user }}"
+        mode: '0755'
+      loop:
+        - "{{ app_dir }}"
+        - "{{ app_dir }}/vault"
+        - "{{ app_dir }}/vault/scripts"
+        - "{{ app_dir }}/logs"
+        - "{{ app_dir }}/config"
+        
+    - name: Install required packages
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - jq
+          - python3-pip
+        state: present
+        
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+        
+    - name: Add user to docker group
+      user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: yes
+        
+    - name: Create systemd service for app
+      template:
+        src: templates/currency-bot.service.j2
+        dest: /etc/systemd/system/currency-bot.service
+        mode: '0644'
+      notify: reload systemd
+      tags: [deploy]
+      
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes

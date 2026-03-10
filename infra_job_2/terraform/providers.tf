@@ -3,7 +3,7 @@ terraform {
   
   required_providers {
     openstack = {
-      source  = "github.com/terraform-provider-openstack/terraform-provider-openstack"
+      source  = "github.com/terraform-provider-openstack/openstack"
       version = "~> 1.50.0"
     }
   }

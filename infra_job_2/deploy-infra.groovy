@@ -4,10 +4,7 @@ pipeline {
     }
     
     environment {
-        TF_VAR_os_auth_url = credentials('OS_AUTH_URL')
-        TF_VAR_os_username = credentials('OS_USERNAME')
-        TF_VAR_os_password = credentials('OS_PASSWORD')
-        TF_VAR_os_project_name = credentials('OS_PROJECT_NAME')
+        OS_CREDENTIALS_ID = 'rc-credentials-arseniy'
         TF_VAR_existing_subnet_id = 'd80da048-c188-45a5-80e4-55d914fe58ea'
         TF_VAR_ansible_ssh_private_key_file = credentials('Arseniy')
         
@@ -20,6 +17,21 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Prepare OpenStack Env') {
+            steps {
+                ansiColor('xterm') {
+                    printLog("Loading OpenStack credentials...", '🔐', 36)
+                    loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
+                    printLog("Testing OpenStack connection...", '🔑', 35)
+                    sh '''
+                        set +x
+                        openstack token issue -f yaml
+                    '''
+                    printSuccess("Auth successful")
+                }
             }
         }
         
@@ -167,6 +179,38 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
         
         failure {
             echo "❌ Deployment failed! Check logs."
+        }
+    }
+}
+
+def loadSecretsIntoEnv(String credentialId) {
+    withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
+        def content = SECRET_BLOB
+        
+        content.split(' ').each { rawLine ->
+            try {
+                def line = rawLine.trim()
+                if (!line || line.startsWith('#')) return
+                
+                def parts = line.split('=', 2)
+                if (parts.length != 2) return
+                
+                def key = parts[0].trim()
+                def value = parts[1].trim()
+                
+                while (value.length() >= 2 && 
+                      ((value.startsWith('"') && value.endsWith('"')) || 
+                       (value.startsWith("'") && value.endsWith("'")))) {
+                    value = value.substring(1, value.length() - 1)
+                }
+                value = value.trim()
+                
+                env."${key}" = value
+                println "✅ Loaded: ${key}"
+                
+            } catch (Exception e) {
+                println "❌ Error loading ${key ?: 'unknown'}: ${e.message}"
+            }
         }
     }
 }

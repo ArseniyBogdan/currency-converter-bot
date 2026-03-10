@@ -153,10 +153,9 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
         always {
             echo "📊 Deployment completed"
             
-            node {
-                archiveArtifacts artifacts: 'infra_job/terraform/*.tfstate', allowEmptyArchive: true
-                cleanWs()
-            }
+            archiveArtifacts artifacts: 'infra_job/terraform/*.tfstate', allowEmptyArchive: true
+            cleanWs()
+            
         }
         
         success {

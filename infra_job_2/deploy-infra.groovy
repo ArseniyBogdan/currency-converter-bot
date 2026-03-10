@@ -183,6 +183,41 @@ ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/
     }
 }
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+def printLog(String message, String emoji = '', int colorCode = 36, boolean bold = false) {
+    def boldCode = bold ? "\\e[1m" : ""
+    def color = "\\e[${colorCode}m"
+    def reset = "\\e[0m"
+    def display = emoji ? "${emoji} ${message}" : message
+    
+    ansiColor('xterm') {
+        sh(script: """
+            set +x
+            printf '${boldCode}${color}${display}${reset}\\n'
+        """, returnStdout: false)
+    }
+}
+
+def printStageHeader(String stageName, String emoji = '', int colorCode = 36) {
+    def border = "=" * 22
+    def bold = "\\e[1m"
+    def color = "\\e[${colorCode}m"
+    def reset = "\\e[0m"
+    def display = emoji ? "${emoji} ${stageName}" : stageName
+
+    sh(script: "set +x && echo -e '${bold}${color}${border} ${display} ${border}${reset}'", returnStdout: false)
+}
+
+def printInfo(String message)    { printLog(message, 'ℹ️', 36) }
+def printSuccess(String message) { printLog(message, '✅', 32) }
+def printWarning(String message) { printLog(message, '⚠️', 33) }
+def printError(String message)   { printLog(message, '❌', 31) }
+def printDebug(String message)   { printLog(message, '🔍', 90) }
+def printStep(String message)    { printLog(message, '📍', 35) }
+
 def loadSecretsIntoEnv(String credentialId) {
     withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
         def content = SECRET_BLOB

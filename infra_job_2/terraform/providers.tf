@@ -3,17 +3,8 @@ terraform {
   
   required_providers {
     openstack = {
-      source  = "terraform-provider-openstack/openstack"
+      source  = "github.com/terraform-provider-openstack/terraform-provider-openstack"
       version = "~> 1.50.0"
-    }
-  }
-
-  provider_installation {
-    network_mirror {
-      url = "https://registry.opentofu.org/"
-    }
-    direct {
-      include = ["*/*"]
     }
   }
 }

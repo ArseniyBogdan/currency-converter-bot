@@ -7,6 +7,15 @@ terraform {
       version = "~> 1.50.0"
     }
   }
+
+  provider_installation {
+    network_mirror {
+      url = "https://registry.opentofu.org/"
+    }
+    direct {
+      include = ["*/*"]
+    }
+  }
 }
 
 provider "openstack" {

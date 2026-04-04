@@ -6,16 +6,6 @@ terraform {
     }
   }
   required_version = ">= 1.0"
-
-  provider_installation {
-    filesystem_mirror {
-      path    = "/tmp/terraform-providers"
-      include = ["yandex-cloud/yandex"]
-    }
-    direct {
-      exclude = ["yandex-cloud/yandex"]
-    }
-  }
 }
 
 provider "yandex" {

@@ -12,7 +12,7 @@ pipeline {
         // Отключаем проверку SSH-ключей для новых ВМ
         ANSIBLE_HOST_KEY_CHECKING = 'False'
 
-        PATH = "${env.PATH}:${env.HOME}/bin"
+        PATH = "${env.PATH}:${env.HOME}/bin:${env.HOME}/miniconda/bin"
     }
 
     stages {

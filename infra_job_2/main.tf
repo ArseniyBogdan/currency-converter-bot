@@ -34,33 +34,18 @@ variable "image_family" {
   default = "ubuntu-2204-lts"
 }
 
+variable "security_group_id" {
+  type        = string
+  description = "security group id"
+  default     = "default-sg-enpq1korg6qpq5kr687c"
+}
+
 data "yandex_vpc_subnet" "main" {
   subnet_id = var.subnet_id
 }
 
 data "yandex_compute_image" "ubuntu" {
   family = var.image_family
-}
-
-# Security Group (SSH + Bot API)
-resource "yandex_vpc_security_group" "arseniy_bot_sg" {
-  name       = "bot-sg"
-  network_id = data.yandex_vpc_subnet.main.network_id
-  folder_id  = var.folder_id
-
-  ingress {
-    protocol       = "TCP"
-    description    = "SSH Access"
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    port           = 22
-  }
-
-  ingress {
-    protocol       = "TCP"
-    description    = "Bot API Port"
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    port           = 8081
-  }
 }
 
 # MongoDB Volume (2GB)
@@ -113,7 +98,7 @@ resource "yandex_compute_instance" "arseniy_bot_server" {
   network_interface {
     subnet_id          = var.subnet_id
     nat                = true 
-    security_group_ids = [yandex_vpc_security_group.arseniy_bot_sg.id]
+    security_group_ids = [var.security_group_id]
   }
 
   metadata = {

@@ -46,7 +46,7 @@ pipeline {
                 script {
                     // Извлекаем публичный IP из вывода Terraform
                     def serverIp = sh(
-                        script: 'terraform output -raw instance_ip', 
+                        script: 'terraform output -raw server_public_ip', 
                         returnStdout: true
                     ).trim()
                     env.SERVER_IP = serverIp

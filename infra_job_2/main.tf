@@ -108,8 +108,8 @@ resource "yandex_compute_instance" "arseniy_bot_server" {
   allow_stopping_for_update = true
 }
 
-output "server_private_ip" {
-  description = "Private IP address (доступ через VPN/Bastion)"
+output "server_public_ip" {
+  description = "Public IP address (доступ через VPN/Bastion)"
   value       = yandex_compute_instance.arseniy_bot_server.network_interface[0].ip_address
 }
 

@@ -3,7 +3,7 @@ pipeline {
 
     // Привязка секретов из Jenkins Credentials
     environment {
-        
+
         YC_TOKEN              = credentials('yc-token')
         TF_FOLDER_ID          = "b1gm94s1sde2ispi5k21"
         TF_SUBNET_ID          = "fl80id702e4irnblcd63"
@@ -97,8 +97,7 @@ pipeline {
             // Можно добавить шаг отправки уведомления в Slack/Telegram
         }
         cleanup {
-            // Опционально: terraform destroy в случае критического сбоя на ранних этапах
-            // sh 'terraform destroy -auto-approve -input=false'
+            sh 'terraform destroy -auto-approve -input=false'
         }
     }
 }

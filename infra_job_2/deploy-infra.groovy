@@ -16,7 +16,7 @@ pipeline {
     stages {
         stage('Terraform: Init & Plan') {
             steps {
-                export PATH=$PATH:~/bin
+                sh "export PATH=$PATH:~/bin"
                 sh 'terraform init -input=false -no-color'
                 sh '''
                     terraform plan \

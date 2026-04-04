@@ -55,11 +55,11 @@ pipeline {
 
                         // Заменяем плейсхолдер VM_IP в inventory.yml
                         // Используем | как разделитель sed, чтобы избежать конфликтов с точками в IP
-                        sh "sed -i 's|VM_IP|${serverIp}|g' inventory.yml"
+                        sh "sed -i 's|VM_IP|${serverIp}|g' ansible/inventory.yml"
                         echo "✅ inventory.yml обновлён"
                         
                         // Показываем актуальный инвентарь для отладки
-                        sh 'cat inventory.yml'
+                        sh 'cat ansible/inventory.yml'
                     }
                 }
             }
@@ -73,11 +73,13 @@ pipeline {
                     keyFileVariable: 'SSH_KEY_PATH',
                     passphraseVariable: ''
                 )]) {
-                    sh """
-                        ansible-playbook -i inventory.yml playbook.yml \\
-                          --private-key \${SSH_KEY_PATH} \\
-                          -vv
-                    """
+                    dir('infra_job_2/ansible'){
+                        sh """
+                            ansible-playbook -i inventory.yml playbook.yml \\
+                            --private-key \${SSH_KEY_PATH} \\
+                            -vv
+                        """
+                    }
                 }
             }
         }
@@ -86,10 +88,12 @@ pipeline {
     post {
         always {
             // Очистка временных файлов
-            sh 'rm -f main.tf tfplan 2>/dev/null || true'
-            
-            // Архивация логов Terraform и Ansible
-            archiveArtifacts artifacts: '**/*.log', allowEmptyArchive: true
+            dir('infra_job_2'){
+                sh 'rm -f main.tf tfplan 2>/dev/null || true'
+
+                // Архивация логов Terraform и Ansible
+                archiveArtifacts artifacts: '**/*.log', allowEmptyArchive: true
+            }
         }
         success {
             echo "🎉 Инфраструктура успешно развернута и настроена!"
@@ -97,10 +101,11 @@ pipeline {
         }
         failure {
             echo "❌ Пайплайн завершился с ошибкой. Проверьте логи выше."
-            // Можно добавить шаг отправки уведомления в Slack/Telegram
         }
         cleanup {
-            sh 'terraform destroy -auto-approve -input=false'
+            dir('infra_job_2'){
+                sh 'terraform destroy -auto-approve -input=false'
+            }
         }
     }
 }

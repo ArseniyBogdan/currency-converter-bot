@@ -102,10 +102,5 @@ pipeline {
         failure {
             echo "❌ Пайплайн завершился с ошибкой. Проверьте логи выше."
         }
-        cleanup {
-            dir('infra_job_2'){
-                sh 'terraform destroy -auto-approve -input=false'
-            }
-        }
     }
 }

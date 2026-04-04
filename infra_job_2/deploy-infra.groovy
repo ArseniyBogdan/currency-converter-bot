@@ -11,12 +11,13 @@ pipeline {
         
         // Отключаем проверку SSH-ключей для новых ВМ
         ANSIBLE_HOST_KEY_CHECKING = 'False'
+
+        PATH = "${env.PATH}:${env.HOME}/bin"
     }
 
     stages {
         stage('Terraform: Init & Plan') {
             steps {
-                sh "export PATH=$PATH:~/bin"
                 sh 'terraform init -input=false -no-color'
                 sh '''
                     terraform plan \

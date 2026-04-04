@@ -18,14 +18,16 @@ pipeline {
     stages {
         stage('Terraform: Init & Plan') {
             steps {
-                sh 'terraform init -input=false -no-color'
-                sh '''
-                    terraform plan \
-                      -var="folder_id=${TF_FOLDER_ID}" \
-                      -var="subnet_id=${TF_SUBNET_ID}" \
-                      -var="ssh_public_key=${TF_SSH_PUB_KEY}" \
-                      -input=false -out=tfplan -no-color
-                '''
+                dir('infra_job_2'){
+                    sh 'terraform init -input=false -no-color'
+                    sh '''
+                        terraform plan \
+                        -var="folder_id=${TF_FOLDER_ID}" \
+                        -var="subnet_id=${TF_SUBNET_ID}" \
+                        -var="ssh_public_key=${TF_SSH_PUB_KEY}" \
+                        -input=false -out=tfplan -no-color
+                    '''
+                }
             }
         }
 

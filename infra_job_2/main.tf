@@ -37,7 +37,7 @@ variable "image_family" {
 variable "security_group_id" {
   type        = string
   description = "security group id"
-  default     = "default-sg-enpq1korg6qpq5kr687c"
+  default     = "enpv49erji0f40prfu72"
 }
 
 data "yandex_vpc_subnet" "main" {

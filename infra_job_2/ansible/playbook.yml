@@ -58,11 +58,11 @@
         mode: '0755'
 
     - name: Add Docker official GPG key
-      ansible.builtin.command: >
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg
-        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-      args:
-        creates: /etc/apt/keyrings/docker.gpg
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /tmp/docker.gpg
+        mode: '0644'
+      register: gpg_key
 
     - name: Add Docker repository
       apt_repository:

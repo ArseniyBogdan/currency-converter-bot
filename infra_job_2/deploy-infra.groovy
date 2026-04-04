@@ -20,11 +20,9 @@ pipeline {
             steps {
                 dir('infra_job_2'){
                     sh '''
-                        export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
                         terraform init -input=false -no-color
                     '''
                     sh '''
-                        export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
                         terraform plan \
                         -var="folder_id=${TF_FOLDER_ID}" \
                         -var="subnet_id=${TF_SUBNET_ID}" \
@@ -37,7 +35,9 @@ pipeline {
 
         stage('Terraform: Apply') {
             steps {
-                sh 'terraform apply -auto-approve tfplan -no-color'
+                dir('infra_job_2'){
+                    sh 'terraform apply -auto-approve tfplan -no-color'
+                }
             }
         }
 

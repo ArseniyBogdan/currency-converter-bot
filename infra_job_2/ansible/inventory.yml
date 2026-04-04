@@ -5,4 +5,3 @@ all:
         currency_converter_bot:
           ansible_host: VM_IP
           ansible_user: ubuntu
-          ansible_ssh_private_key_file: ~/.ssh/id_rsa

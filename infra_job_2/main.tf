@@ -14,29 +14,24 @@ provider "yandex" {
 
 variable "folder_id" {
   type        = string
-  description = "folder id"
+  description = "Yandex Cloud Folder ID"
+  default     = "b1gm94s1sde2ispi5k21"
 }
 
 variable "subnet_id" {
   type        = string
-  description = "subnet id"
-  default     = "e2l8upt32adb7kjindkt"
-}
-
-variable "security_group_id" {
-  type        = string
-  description = "security group id"
-  default     = "enp92iphnc0bquh1mg9f"
-}
-
-variable "instance_name" {
-  type    = string
-  default = "tripplanner-vm"
+  description = "Existing Subnet ID"
+  default     = "fl80id702e4irnblcd63"
 }
 
 variable "ssh_public_key" {
   type        = string
-  description = "public ssh key"
+  description = "Public SSH key for ubuntu user"
+}
+
+variable "image_family" {
+  type    = string
+  default = "ubuntu-2204-lts"
 }
 
 data "yandex_vpc_subnet" "main" {
@@ -44,11 +39,49 @@ data "yandex_vpc_subnet" "main" {
 }
 
 data "yandex_compute_image" "ubuntu" {
-  family = "ubuntu-2404-lts"
+  family = var.image_family
 }
 
-resource "yandex_compute_instance" "vm" {
-  name        = var.instance_name
+# Security Group (SSH + Bot API)
+resource "yandex_vpc_security_group" "arseniy_bot_sg" {
+  name       = "bot-sg"
+  network_id = data.yandex_vpc_subnet.main.network_id
+  folder_id  = var.folder_id
+
+  ingress {
+    protocol       = "TCP"
+    description    = "SSH Access"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 22
+  }
+
+  ingress {
+    protocol       = "TCP"
+    description    = "Bot API Port"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 8081
+  }
+}
+
+# MongoDB Volume (2GB)
+resource "yandex_compute_disk" "mongo_vol" {
+  name     = "mongo-vol"
+  size     = 2
+  type     = "network-hdd"
+  zone     = data.yandex_vpc_subnet.main.zone
+}
+
+# RabbitMQ Volume (2GB)
+resource "yandex_compute_disk" "rabbit_vol" {
+  name     = "rabbit-vol"
+  size     = 2
+  type     = "network-hdd"
+  zone     = data.yandex_vpc_subnet.main.zone
+}
+
+# Virtual Machine
+resource "yandex_compute_instance" "arseniy_bot_server" {
+  name        = "currency-converter-bot"
   platform_id = "standard-v3"
   zone        = data.yandex_vpc_subnet.main.zone
 
@@ -66,10 +99,21 @@ resource "yandex_compute_instance" "vm" {
     }
   }
 
+  # Автоматическое подключение дисков
+  secondary_disk {
+    disk_id = yandex_compute_disk.mongo_vol.id
+    mode    = "READ_WRITE"
+  }
+
+  secondary_disk {
+    disk_id = yandex_compute_disk.rabbit_vol.id
+    mode    = "READ_WRITE"
+  }
+
   network_interface {
     subnet_id          = var.subnet_id
-    nat                = true
-    security_group_ids = [var.security_group_id]
+    nat                = true 
+    security_group_ids = [yandex_vpc_security_group.arseniy_bot_sg.id]
   }
 
   metadata = {
@@ -79,19 +123,15 @@ resource "yandex_compute_instance" "vm" {
   allow_stopping_for_update = true
 }
 
-output "instance_id" {
-  value = yandex_compute_instance.vm.id
+output "server_private_ip" {
+  description = "Private IP address (доступ через VPN/Bastion)"
+  value       = yandex_compute_instance.arseniy_bot_server.network_interface[0].ip_address
 }
 
-output "instance_name" {
-  value = yandex_compute_instance.vm.name
+output "server_name" {
+  value = yandex_compute_instance.arseniy_bot_server.name
 }
 
-output "instance_ip" {
-  description = "external ip"
-  value       = yandex_compute_instance.vm.network_interface[0].nat_ip_address
-}
-
-output "instance_internal_ip" {
-  value = yandex_compute_instance.vm.network_interface[0].ip_address
+output "ssh_command" {
+  value = "ssh -i ~/.ssh/id_rsa ubuntu@${yandex_compute_instance.arseniy_bot_server.network_interface[0].ip_address}"
 }

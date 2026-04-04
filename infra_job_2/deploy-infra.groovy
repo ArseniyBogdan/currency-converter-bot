@@ -44,21 +44,23 @@ pipeline {
         stage('Обновление Inventory') {
             steps {
                 script {
-                    // Извлекаем публичный IP из вывода Terraform
-                    def serverIp = sh(
-                        script: 'terraform output -raw server_public_ip', 
-                        returnStdout: true
-                    ).trim()
-                    env.SERVER_IP = serverIp
-                    echo "🌍 Выделен IP: ${serverIp}"
+                    dir('infra_job_2'){
+                        // Извлекаем публичный IP из вывода Terraform
+                        def serverIp = sh(
+                            script: 'terraform output -raw server_public_ip', 
+                            returnStdout: true
+                        ).trim()
+                        env.SERVER_IP = serverIp
+                        echo "🌍 Выделен IP: ${serverIp}"
 
-                    // Заменяем плейсхолдер VM_IP в inventory.yml
-                    // Используем | как разделитель sed, чтобы избежать конфликтов с точками в IP
-                    sh "sed -i 's|VM_IP|${serverIp}|g' inventory.yml"
-                    echo "✅ inventory.yml обновлён"
-                    
-                    // Показываем актуальный инвентарь для отладки
-                    sh 'cat inventory.yml'
+                        // Заменяем плейсхолдер VM_IP в inventory.yml
+                        // Используем | как разделитель sed, чтобы избежать конфликтов с точками в IP
+                        sh "sed -i 's|VM_IP|${serverIp}|g' inventory.yml"
+                        echo "✅ inventory.yml обновлён"
+                        
+                        // Показываем актуальный инвентарь для отладки
+                        sh 'cat inventory.yml'
+                    }
                 }
             }
         }

@@ -109,8 +109,8 @@ resource "yandex_compute_instance" "arseniy_bot_server" {
 }
 
 output "server_public_ip" {
-  description = "Public IP address (доступ через VPN/Bastion)"
-  value       = yandex_compute_instance.arseniy_bot_server.network_interface[0].ip_address
+  description = "Public IP address"
+  value       = yandex_compute_instance.arseniy_bot_server.network_interface[0].nat_ip_address
 }
 
 output "server_name" {
@@ -118,5 +118,5 @@ output "server_name" {
 }
 
 output "ssh_command" {
-  value = "ssh -i ~/.ssh/id_rsa ubuntu@${yandex_compute_instance.arseniy_bot_server.network_interface[0].ip_address}"
+  value = "ssh -i ~/.ssh/id_rsa ubuntu@${yandex_compute_instance.arseniy_bot_server.network_interface[0].nat_ip_address}"
 }

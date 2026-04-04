@@ -19,6 +19,7 @@ pipeline {
         stage('Terraform: Init & Plan') {
             steps {
                 dir('infra_job_2'){
+                    export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
                     sh 'terraform init -input=false -no-color'
                     sh '''
                         terraform plan \

@@ -19,9 +19,12 @@ pipeline {
         stage('Terraform: Init & Plan') {
             steps {
                 dir('infra_job_2'){
-                    export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
-                    sh 'terraform init -input=false -no-color'
                     sh '''
+                        export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
+                        terraform init -input=false -no-color
+                    '''
+                    sh '''
+                        export TF_CLI_CONFIG_FILE=/var/jenkins_home/.terraformrc
                         terraform plan \
                         -var="folder_id=${TF_FOLDER_ID}" \
                         -var="subnet_id=${TF_SUBNET_ID}" \

@@ -14,15 +14,9 @@ pipeline {
     }
 
     stages {
-        stage('1. Подготовка окружения') {
+        stage('Terraform: Init & Plan') {
             steps {
-                // Убедимся, что временные файлы Ansible не будут блокироваться правами
-                sh 'chmod 700 ~/.ssh 2>/dev/null || true'
-            }
-        }
-
-        stage('2. Terraform: Init & Plan') {
-            steps {
+                export PATH=$PATH:~/bin
                 sh 'terraform init -input=false -no-color'
                 sh '''
                     terraform plan \
@@ -34,7 +28,7 @@ pipeline {
             }
         }
 
-        stage('3. Terraform: Apply') {
+        stage('Terraform: Apply') {
             steps {
                 sh 'terraform apply -auto-approve tfplan -no-color'
             }

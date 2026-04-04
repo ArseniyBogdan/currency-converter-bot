@@ -5,8 +5,8 @@
   environment:
     DEBIAN_FRONTEND: noninteractive
   vars:
-    app_user: botuser
-    app_group: botuser
+    app_user: ubuntu
+    app_group: ubuntu
     app_dir: /opt/currency-converter-bot
     mongo_mount: /var/lib/mongodb
     rabbit_mount: /var/lib/rabbitmq
@@ -183,15 +183,6 @@
         group: rabbitmq
         mode: "0750"
         state: directory
-
-    # 5. Подготовка директории проекта
-    - name: Create app system user & group
-      user:
-        name: "{{ app_user }}"
-        group: "{{ app_group }}"
-        state: present
-        system: true
-        shell: /usr/sbin/nologin
 
     - name: Create application directory
       file:

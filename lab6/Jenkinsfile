@@ -64,18 +64,20 @@ pipeline {
             steps {
                 echo '📝 Generating inventory...'
                 sh """
-                    # Используем абсолютные пути от корня workspace
+                    # Делаем скрипт исполняемым (абсолютный путь)
                     chmod +x \${WORKSPACE}/${GEN_INV_SCRIPT}
 
-                    # Генерируем output из Terraform (абсолютный путь)
-                    \${WORKSPACE}/${TF_DIR}/terraform output -json > \${WORKSPACE}/terraform_outputs.json || true
+                    # Генерируем output из Terraform
+                    # Важно: terraform — это команда в PATH, а не файл в проекте!
+                    # Поэтому сначала заходим в папку, потом выполняем команду
+                    cd \${WORKSPACE}/${TF_DIR}
+                    terraform output -json > \${WORKSPACE}/terraform_outputs.json || true
 
-                    # Запускаем скрипт, передавая ему пути как аргументы (опционально)
-                    # Или просто запускаем из правильной директории:
+                    # Возвращаемся в папку ansible и запускаем скрипт генерации
                     cd \${WORKSPACE}/${ANSIBLE_DIR}
                     ./generate_inventory.sh
 
-                    # Показываем результат
+                    # Показываем результат для отладки
                     cat \${WORKSPACE}/${INVENTORY_FILE}
                 """
             }

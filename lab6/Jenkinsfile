@@ -88,18 +88,15 @@ pipeline {
         }
     }
 
-    post {
-        success {
-            echo '🎉 Pipeline completed successfully!'
-        }
-        failure {
-            echo '❌ Pipeline failed. Check console output.'
-        }
-        always {
-            // cleanWs() требует node {}, поэтому оборачиваем
-            node {
-                cleanWs()
+        post {
+            success {
+                echo '🎉 Pipeline completed successfully!'
+            }
+            failure {
+                echo '❌ Pipeline failed. Check console output.'
+            }
+            always {
+                cleanWs()  // ← просто cleanWs(), без node {}
             }
         }
-    }
 }

@@ -4,7 +4,7 @@
 #}
 
 resource "yandex_vpc_subnet" "default" {
-  name           = "shklyarova-bot-vm-subnet"
+  name           = "shklyarova-bot-vm-subnet-lab6"
   zone           = "ru-central1-d"
   network_id     = "enpq1korg6qpq5kr687c"  # ← Существующая сеть default
   v4_cidr_blocks = ["192.168.101.0/24"]     # ← Уникальная подсеть для вас

@@ -21,18 +21,25 @@ if [ -z "$OUTPUT_FILE" ] || [ ! -f "$OUTPUT_FILE" ]; then
     exit 1
 fi
 
-# Извлекаем IP: Terraform JSON имеет структуру {"vm_public_ip": {"value": "IP", ...}}
-# Используем grep + sed для извлечения значения из вложенного объекта
-VM_IP=$(grep -A1 '"vm_public_ip"' "$OUTPUT_FILE" | grep '"value"' | sed 's/.*"value"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+# Извлекаем IP: ищем блок "vm_public_ip", затем внутри него "value"
+# grep -A 10 берёт 10 строк после нахождения ключа — этого достаточно для блока
+VM_IP=$(grep -A 10 '"vm_public_ip"' "$OUTPUT_FILE" | grep '"value"' | head -1 | sed 's/.*"value"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
 
 if [ -z "$VM_IP" ]; then
     echo "❌ Could not extract VM IP from $OUTPUT_FILE"
-    echo "💡 File content preview:"
-    head -20 "$OUTPUT_FILE"
+    echo "💡 Debug: trying alternative extraction..."
+    # Альтернатива: просто ищем первую строку с "value" после "vm_public_ip"
+    VM_IP=$(awk '/"vm_public_ip"/,/}/ {if(/"value"/) {gsub(/.*"value"[[:space:]]*:[[:space:]]*"/, ""); gsub(/".*/, ""); print; exit}}' "$OUTPUT_FILE")
+fi
+
+if [ -z "$VM_IP" ]; then
+    echo "❌ Still could not extract VM IP"
+    echo "💡 File content:"
+    cat "$OUTPUT_FILE"
     exit 1
 fi
 
-# Генерируем inventory БЕЗ указания ключа (sshagent или ansible.cfg подставят)
+# Генерируем inventory БЕЗ указания ключа
 cat > "$INV_FILE" << EOF
 all:
   children:

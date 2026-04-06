@@ -52,10 +52,19 @@ pipeline {
         stage('Generate Inventory') {
             steps {
                 echo '📝 Generating inventory...'
+                // Выполняем всё из корня рабочего пространства, чтобы пути были корректны
                 sh """
                     chmod +x ${GEN_INV_SCRIPT}
-                    cd ${TF_DIR} && terraform output -json > ../terraform_outputs.json || true
-                    cd .. && ${GEN_INV_SCRIPT}
+
+                    # Генерируем output из Terraform
+                    cd ${TF_DIR}
+                    terraform output -json > ../terraform_outputs.json || true
+                    cd - > /dev/null  # Возвращаемся в корень
+
+                    # Запускаем скрипт генерации (путь относительно корня)
+                    ./${GEN_INV_SCRIPT}
+
+                    # Показываем результат
                     cat ${INVENTORY_FILE}
                 """
             }

@@ -133,7 +133,12 @@ pipeline {
                 echo '❌ Pipeline failed. Check console output.'
             }
             always {
-                cleanWs()  // ← просто cleanWs(), без node {}
+                // ✅ Чистим только временные файлы, но сохраняем state!
+                sh '''
+                    rm -rf lab6/terraform/.terraform/providers
+                    rm -f lab6/terraform/.terraform.lock.hcl
+                    # terraform.tfstate и .terraform/state/ НЕ трогаем!
+                '''
             }
         }
 }

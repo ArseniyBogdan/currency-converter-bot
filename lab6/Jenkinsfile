@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent none  // ← не используем агента по умолчанию
 
     environment {
         TF_DIR = 'lab6/terraform'
@@ -10,64 +10,90 @@ pipeline {
 
     stages {
         stage('Checkout') {
+            agent any  // ← для checkout нужен любой агент
             steps {
                 echo '📥 Checking out...'
                 checkout scm
-                sh "chmod +x ${GEN_INV_SCRIPT}"
+                stash includes: 'lab6/**', name: 'lab6-code'
             }
         }
 
         stage('Terraform Apply') {
+            agent {
+                docker {
+                    image 'hashicorp/terraform:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
+                }
+            }
             steps {
-                echo '☁️ Creating infrastructure...'
+                unstash 'lab6-code'
                 dir("${TF_DIR}") {
-                    sh 'terraform init -input=false'
                     withCredentials([string(credentialsId: 'yc-token', variable: 'YC_TOKEN')]) {
-                        sh """
-                            export YC_TOKEN=\${YC_TOKEN}
+                        sh '''
+                            export YC_TOKEN=${YC_TOKEN}
+                            terraform init -input=false
                             terraform apply -auto-approve -input=false
-                        """
+                            terraform output -json > ../terraform_outputs.json || true
+                        '''
                     }
                 }
             }
         }
 
         stage('Generate Inventory') {
+            agent any
             steps {
+                unstash 'lab6-code'
                 echo '📝 Generating inventory...'
                 sh """
-                    ${GEN_INV_SCRIPT}
+                    chmod +x ${GEN_INV_SCRIPT}
+                    cd ${TF_DIR} && terraform output -json > ../terraform_outputs.json || true
+                    cd .. && ${GEN_INV_SCRIPT}
                     cat ${INVENTORY_FILE}
                 """
             }
         }
 
         stage('Ansible Playbook') {
+            agent {
+                docker {
+                    image 'ansible/ansible:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
+                }
+            }
             steps {
-                echo '🏗 Running playbook...'
+                unstash 'lab6-code'
                 dir("${ANSIBLE_DIR}") {
                     withCredentials([string(credentialsId: 'bot-token', variable: 'BOT_TOKEN')]) {
-                        sh """
-                            ansible-playbook -i inventory.yml playbook.yml \\
-                                --extra-vars "bot_token=\${BOT_TOKEN}" -v
-                        """
+                        sh '''
+                            ansible-playbook -i inventory.yml playbook.yml \
+                                --extra-vars "bot_token=${BOT_TOKEN}" -v
+                        '''
                     }
                 }
             }
         }
 
         stage('Ansible Deploy') {
+            agent {
+                docker {
+                    image 'ansible/ansible:latest'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
+                }
+            }
             steps {
-                echo '🚀 Deploying app...'
+                unstash 'lab6-code'
                 dir("${ANSIBLE_DIR}") {
-                    sh "ansible-playbook -i inventory.yml deploy.yml -v"
+                    sh '''
+                        ansible-playbook -i inventory.yml deploy.yml -v
+                    '''
                 }
             }
         }
 
         stage('Verify') {
+            agent any
             steps {
-                echo '✅ Verifying...'
                 script {
                     def vmIP = sh(
                         script: "grep ansible_host ${INVENTORY_FILE} | awk '{print \$2}'",
@@ -75,7 +101,6 @@ pipeline {
                     ).trim()
                     echo "🎯 VM IP: ${vmIP}"
 
-                    // Используем sshagent для подключения
                     sshagent(credentials: ['vm-ssh-key']) {
                         sh """
                             ssh -o StrictHostKeyChecking=no ubuntu@${vmIP} "sudo systemctl is-active currency-bot"
@@ -87,8 +112,14 @@ pipeline {
     }
 
     post {
-        success { echo '🎉 Success!' }
-        failure { echo '❌ Failed!' }
-        always { cleanWs() }
+        success {
+            echo '🎉 Success!'
+        }
+        failure {
+            echo '❌ Failed!'
+        }
+        always {
+            cleanWs()
+        }
     }
 }

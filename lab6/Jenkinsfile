@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        TF_DIR = 'terraform'
-        ANSIBLE_DIR = 'ansible'
+        TF_DIR = 'lab6/terraform'
+        ANSIBLE_DIR = 'lab6/ansible'
         GEN_INV_SCRIPT = "${ANSIBLE_DIR}/generate_inventory.sh"
         INVENTORY_FILE = "${ANSIBLE_DIR}/inventory.yml"
     }

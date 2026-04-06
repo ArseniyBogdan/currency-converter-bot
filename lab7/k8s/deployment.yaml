@@ -50,7 +50,7 @@ spec:
 
             # --- Telegram ---
             - name: TELEGRAM_BOT_TOKEN
-              value: "8312519972:AAGrLasXJtoR0HNY5Pa0WLikJkzOtv7s5gE"
+              value: "8711598516:AAFAd73i2zpLqQ-3KDLBSX_MIiA3b9qwr5Q"
 
 #          # Проверки здоровья
 #          livenessProbe:

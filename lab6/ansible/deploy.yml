@@ -1,0 +1,103 @@
+---
+- name: Deploy Currency Converter Bot Application
+  hosts: bot_vms
+  become: yes
+  vars:
+    app_dir: /opt/currency-converter-bot
+    deploy_dir: /opt/app
+
+  tasks:
+    # --- Найти Java ---
+    - name: Find Java 23 directory
+      shell: ls /opt | grep jdk-23 | head -n 1
+      register: java_dir
+      changed_when: false
+
+    # --- Подготовить директорию ---
+    - name: Create deploy directory
+      file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: '0755'
+
+    # --- Скопировать JAR из репозитория ---
+    - name: Copy application JAR
+      copy:
+        src: "{{ app_dir }}/build/libs/currency-converter-bot-0.0.jar"
+        dest: "{{ deploy_dir }}/app.jar"
+        mode: '0644'
+        remote_src: yes
+
+    # --- Создать файл окружения ---
+    - name: Create environment file
+      copy:
+        dest: "{{ deploy_dir }}/app.env"
+        content: |
+          SPRING_CLOUD_VAULT_URI=127.0.0.1
+          SPRING_CLOUD_VAULT_PORT=8200
+          SPRING_CLOUD_VAULT_TOKEN=test-token
+          SPRING_CLOUD_VAULT_SCHEME=http
+          SPRING_CLOUD_VAULT_KV_ENABLED=true
+          SPRING_CLOUD_VAULT_KV_BACKEND=secret
+          SPRING_CLOUD_VAULT_AUTHENTICATION=TOKEN
+          SPRING_APPLICATION_NAME=currency-converter-bot
+        mode: '0600'
+
+    # --- Создать systemd-сервис ---
+    - name: Create systemd service file
+      copy:
+        dest: /etc/systemd/system/currency-bot.service
+        content: |
+          [Unit]
+          Description=Currency Converter Bot
+          After=network.target docker.service
+          Requires=docker.service
+
+          [Service]
+          User=root
+          WorkingDirectory={{ deploy_dir }}
+          EnvironmentFile={{ deploy_dir }}/app.env
+          ExecStart=/opt/{{ java_dir.stdout }}/bin/java -jar {{ deploy_dir }}/app.jar
+          Restart=always
+          RestartSec=5
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    # --- Перезагрузить systemd и запустить ---
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start currency-bot service
+      systemd:
+        name: currency-bot
+        state: restarted
+        enabled: yes
+        daemon_reload: yes
+
+    # --- Ожидание старта приложения ---
+    - name: Wait for application to start
+      uri:
+        url: http://127.0.0.1:8081/actuator/health
+        method: GET
+        status_code: [200]
+      register: app_health
+      retries: 20
+      delay: 5
+      until: app_health.status == 200
+      changed_when: false
+      ignore_errors: yes
+
+    # --- Финальный отчёт ---
+    - name: Show deployment status
+      debug:
+        msg: |
+          ✅ Деплой завершён!
+          🤖 Бот: @my_currency_bot_test_bot
+          🔗 Health: http://127.0.0.1:8081/actuator/health
+          📝 Логи: sudo journalctl -u currency-bot -f
+          🔍 Статус: {{ '🟢 РАБОТАЕТ' if app_health.status == 200 else '🟡 ПРОВЕРЬТЕ ЛОГИ' }}

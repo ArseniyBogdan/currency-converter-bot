@@ -1,0 +1,275 @@
+---
+- name: Provision Currency Converter Bot Infrastructure & Build Application
+  hosts: bot_vms
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # === ВАШИ ЗНАЧЕНИЯ ===
+    bot_token: "8312519972:AAGrLasXJtoR0HNY5Pa0WLikJkzOtv7s5gE"
+    app_dir: /opt/currency-converter-bot
+    repo_url: "https://github.com/ArseniyBogdan/currency-converter-bot.git"
+    repo_branch: "jenkins-shklyarova"
+    vault_token: "test-token"
+    vault_port: 8200
+    mongo_port: 27017
+    rabbitmq_port: 5672
+
+  tasks:
+    # ==============================================================================
+    # 🔧 ПОДГОТОВКА: Очистка и базовые пакеты
+    # ==============================================================================
+    - name: Remove broken HashiCorp repo file
+      file:
+        path: /etc/apt/sources.list.d/hashicorp.list
+        state: absent
+
+    - name: Remove broken HashiCorp keyring
+      file:
+        path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        state: absent
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      apt:
+        name: [wget, tar, unzip, docker.io, curl, git, jq]
+        state: present
+
+    - name: Enable Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # ==============================================================================
+    # ☕ УСТАНОВКА JAVA 23 (Adoptium)
+    # ==============================================================================
+    - name: Download Java 23 (Adoptium Temurin)
+      get_url:
+        url: https://api.adoptium.net/v3/binary/latest/23/ga/linux/x64/jdk/hotspot/normal/eclipse
+        dest: /tmp/jdk.tar.gz
+        mode: '0644'
+        timeout: 120
+
+    - name: Extract Java to /opt
+      unarchive:
+        src: /tmp/jdk.tar.gz
+        dest: /opt/
+        remote_src: yes
+        extra_opts: [--strip-components=1]
+
+    - name: Find Java directory name
+      shell: ls /opt | grep jdk-23 | head -n 1
+      register: java_dir_name
+      changed_when: false
+
+    - name: Set JAVA_HOME in /etc/environment
+      lineinfile:
+        path: /etc/environment
+        line: "JAVA_HOME=/opt/{{ java_dir_name.stdout }}"
+        create: yes
+
+    # ==============================================================================
+    # 📦 КЛОНИРОВАНИЕ РЕПОЗИТОРИЯ И СБОРКА FATJAR
+    # ==============================================================================
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Clone repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ app_dir }}"
+        version: "{{ repo_branch }}"
+        force: yes
+        update: yes
+
+    - name: Make gradlew executable
+      file:
+        path: "{{ app_dir }}/gradlew"
+        mode: '0755'
+        state: file
+
+    - name: Build fatJar on VM
+      shell: ./gradlew clean fatJar -x test
+      args:
+        chdir: "{{ app_dir }}"
+        executable: /bin/bash
+      environment:
+        JAVA_HOME: "/opt/{{ java_dir_name.stdout }}"
+        PATH: "/opt/{{ java_dir_name.stdout }}/bin:{{ ansible_env.PATH }}"
+      register: gradle_build
+      changed_when: "'BUILD SUCCESSFUL' in gradle_build.stdout"
+
+    - name: Verify fatJar was created
+      stat:
+        path: "{{ app_dir }}/build/libs/currency-converter-bot-0.0.jar"
+      register: jar_check
+
+    - name: Fail if fatJar not found
+      fail:
+        msg: "❌ fatJar не найден! Проверьте вывод сборки выше."
+      when: not jar_check.stat.exists
+
+    # ==============================================================================
+    # 🐳 ИНФРАСТРУКТУРА: MongoDB, RabbitMQ, Vault в Docker
+    # ==============================================================================
+    - name: Remove old infrastructure containers if exist
+      shell: docker rm -f mongo rabbitmq vault 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    # --- MongoDB ---
+    - name: Run MongoDB container
+      shell: |
+        docker run -d --name mongo \
+          -p 127.0.0.1:{{ mongo_port }}:{{ mongo_port }} \
+          -e MONGO_INITDB_ROOT_USERNAME=test \
+          -e MONGO_INITDB_ROOT_PASSWORD=test \
+          -v mongo-/data/db \
+          mongo:7
+      args:
+        executable: /bin/bash
+      register: mongo_run
+      changed_when: "'created' in mongo_run.stderr or 'started' in mongo_run.stderr"
+
+    # --- RabbitMQ ---
+    - name: Run RabbitMQ container
+      shell: |
+        docker run -d --name rabbitmq \
+          -p 127.0.0.1:{{ rabbitmq_port }}:{{ rabbitmq_port }} \
+          -p 127.0.0.1:15672:15672 \
+          -e RABBITMQ_DEFAULT_USER=test \
+          -e RABBITMQ_DEFAULT_PASS=test \
+          -v rabbitmq-/var/lib/rabbitmq \
+          rabbitmq:3-management
+      args:
+        executable: /bin/bash
+      register: rabbitmq_run
+      changed_when: "'created' in rabbitmq_run.stderr or 'started' in rabbitmq_run.stderr"
+
+    # --- Vault (КРИТИЧНО: 0.0.0.0 для корректного проброса портов!) ---
+    - name: Run Vault container (dev mode, listening on all interfaces)
+      shell: |
+        docker run -d --name vault \
+          --cap-add=IPC_LOCK \
+          -p 0.0.0.0:{{ vault_port }}:{{ vault_port }} \
+          -e VAULT_DEV_ROOT_TOKEN_ID={{ vault_token }} \
+          -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:{{ vault_port }} \
+          -e VAULT_ADDR=http://0.0.0.0:{{ vault_port }} \
+          -v vault-/vault/file \
+          hashicorp/vault:1.19 server -dev
+      args:
+        executable: /bin/bash
+      register: vault_run
+      changed_when: "'created' in vault_run.stderr or 'started' in vault_run.stderr"
+
+    # ==============================================================================
+    # 🔐 ОЖИДАНИЕ ГОТОВНОСТИ VAULT (shell + curl вместо uri модуля)
+    # ==============================================================================
+    - name: Wait for Vault port to be listening
+      shell: |
+        for i in {1..30}; do
+          if ss -tlnp | grep -qE '0\.0\.0\.0:{{ vault_port }}|127\.0\.0\.1:{{ vault_port }}'; then
+            echo "Vault port is listening"
+            exit 0
+          fi
+          echo "Waiting for Vault port... (attempt $i/30)"
+          sleep 2
+        done
+        echo "Vault port failed to open"
+        exit 1
+      args:
+        executable: /bin/bash
+      register: vault_port_check
+      changed_when: false
+      retries: 2
+      delay: 5
+      until: vault_port_check.rc == 0
+
+    - name: Wait for Vault HTTP health endpoint
+      shell: |
+        for i in {1..30}; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:{{ vault_port }}/v1/sys/health 2>/dev/null || echo "000")
+          if [[ "$response" =~ ^(200|429|472|473|503)$ ]]; then
+            echo "Vault is ready (HTTP $response)"
+            exit 0
+          fi
+          echo "Waiting for Vault HTTP... (attempt $i/30, got: $response)"
+          sleep 2
+        done
+        echo "Vault HTTP failed to respond"
+        exit 1
+      args:
+        executable: /bin/bash
+      register: vault_health_check
+      changed_when: false
+      retries: 2
+      delay: 10
+      until: vault_health_check.rc == 0
+
+    # ==============================================================================
+    # 🔑 ЗАПИСЬ СЕКРЕТОВ В VAULT (KV v2 формат)
+    # ==============================================================================
+    - name: Write secrets to Vault via HTTP API
+      shell: |
+        curl -X POST http://127.0.0.1:{{ vault_port }}/v1/secret/data/currency-converter-bot \
+          -H "X-Vault-Token: {{ vault_token }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "data": {
+              "mongo_uri": "mongodb://test:test@127.0.0.1:{{ mongo_port }}/currency-bot?authSource=admin",
+              "mongo_username": "test",
+              "mongo_password": "test",
+              "rabbitmq_host": "127.0.0.1",
+              "rabbitmq_username": "test",
+              "rabbitmq_password": "test",
+              "bot_token": "{{ bot_token }}"
+            }
+          }'
+      args:
+        executable: /bin/bash
+      register: vault_write
+      retries: 3
+      delay: 3
+      until: vault_write.rc == 0
+      changed_when: "'version' in vault_write.stdout"
+
+    - name: Verify secret was written to Vault
+      shell: |
+        response=$(curl -s http://127.0.0.1:{{ vault_port }}/v1/secret/data/currency-converter-bot \
+          -H "X-Vault-Token: {{ vault_token }}")
+        if echo "$response" | grep -q '"bot_token"'; then
+          echo "✅ Secret verified in Vault"
+          exit 0
+        else
+          echo "❌ Secret not found in Vault: $response"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      register: secret_check
+      retries: 3
+      delay: 2
+      until: secret_check.rc == 0
+      changed_when: false
+
+    # ==============================================================================
+    # 📊 ФИНАЛЬНЫЙ ОТЧЁТ
+    # ==============================================================================
+    - name: Show infrastructure status
+      debug:
+        msg: |
+          ✅ Инфраструктура развёрнута!
+          🔗 Vault: http://127.0.0.1:{{ vault_port }} (token: {{ vault_token }})
+          🔗 RabbitMQ: http://127.0.0.1:15672 (test/test)
+          🔗 MongoDB: 127.0.0.1:{{ mongo_port }} (test/test)
+          📦 fatJar: {{ app_dir }}/build/libs/currency-converter-bot-0.0.jar
+          🚀 Следующий шаг: запустите deploy.yml для деплоя приложения

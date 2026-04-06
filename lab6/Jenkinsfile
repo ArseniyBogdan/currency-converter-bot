@@ -1,0 +1,114 @@
+pipeline {
+    agent any
+
+    environment {
+        // Пути относительно корня репозитория
+        TF_DIR = 'terraform'
+        ANSIBLE_DIR = 'ansible'
+        // Скрипт генерации инвентаря
+        GEN_INV_SCRIPT = "${ANSIBLE_DIR}/generate_inventory.sh"
+        // Файл инвентаря, который создаст скрипт
+        INVENTORY_FILE = "${ANSIBLE_DIR}/inventory.yml"
+    }
+
+    stages {
+        // 1. Клонирование кода
+        stage('Checkout') {
+            steps {
+                echo '📥 Клонирование репозитория...'
+                checkout scm
+                // Делаем скрипт исполняемым
+                sh "chmod +x ${GEN_INV_SCRIPT}"
+            }
+        }
+
+        // 2. Создание ВМ через Terraform
+        stage('Terraform Apply') {
+            steps {
+                echo '☁️ Инициализация и создание инфраструктуры...'
+                dir("${TF_DIR}") {
+                    // Инициализация провайдеров
+                    sh 'terraform init -input=false'
+
+                    // Применение конфигурации (создание ВМ)
+                    // Используйте credentials ID 'yc-token', который вы создадите в Jenkins
+                    withCredentials([string(credentialsId: 'yc-token', variable: 'YC_TOKEN')]) {
+                        sh """
+                            export YC_TOKEN=\${YC_TOKEN}
+                            terraform apply -auto-approve -input=false
+                        """
+                    }
+                }
+            }
+        }
+
+        // 3. Генерация inventory для Ansible
+        stage('Generate Inventory') {
+            steps {
+                echo '📝 Генерация ansible/inventory.yml...'
+                sh """
+                    # Запускаем скрипт из корня
+                    ${GEN_INV_SCRIPT}
+                    # Выводим содержимое для проверки в логах
+                    cat ${INVENTORY_FILE}
+                """
+            }
+        }
+
+        // 4. Настройка инфраструктуры и сборка (Playbook)
+        stage('Ansible Playbook') {
+            steps {
+                echo '🏗 Настройка ВМ и сборка приложения...'
+                dir("${ANSIBLE_DIR}") {
+                    withCredentials([string(credentialsId: 'bot-token', variable: 'BOT_TOKEN')]) {
+                        sh """
+                            ansible-playbook -i inventory.yml playbook.yml \\
+                                --extra-vars "bot_token=\${BOT_TOKEN}" \\
+                                -v
+                        """
+                    }
+                }
+            }
+        }
+
+        // 5. Деплой приложения (Deploy)
+        stage('Ansible Deploy') {
+            steps {
+                echo '🚀 Деплой бота на ВМ...'
+                dir("${ANSIBLE_DIR}") {
+                    sh """
+                        ansible-playbook -i inventory.yml deploy.yml -v
+                    """
+                }
+            }
+        }
+
+        // 6. Проверка работоспособности
+        stage('Verify') {
+            steps {
+                echo '✅ Проверка статуса...'
+                sh """
+                    # Читаем IP из сгенерированного inventory
+                    VM_IP=\$(grep ansible_host ${INVENTORY_FILE} | awk '{print \$2}')
+                    echo "🎯 Проверяем ВМ: \$VM_IP"
+
+                    # Проверка сервиса
+                    ssh -o StrictHostKeyChecking=no ubuntu@\$VM_IP "sudo systemctl is-active currency-bot"
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Пайплайн успешно завершен! Бот работает.'
+        }
+        failure {
+            echo '❌ Ошибка в пайплайне. Проверьте логи.'
+        }
+        always {
+            // Очистка рабочего пространства после сборки
+            cleanWs()
+        }
+    }
+}

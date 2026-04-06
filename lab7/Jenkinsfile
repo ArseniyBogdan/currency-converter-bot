@@ -1,0 +1,118 @@
+pipeline {
+    agent any
+
+    environment {
+        APP_NAME = 'currency-converter-bot'
+        APP_VERSION = '0.0'
+        DOCKER_IMAGE = "${APP_NAME}:latest"
+        // Пути относительно КОРНЯ репозитория (откуда Jenkins клонирует код)
+        K8S_DIR = 'lab7/k8s'
+        VAULT_TOKEN = 'test-token'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Build FatJar') {
+            steps {
+                echo '🔨 Building fatJar...'
+                sh 'chmod +x gradlew && ./gradlew clean fatJar -x test'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo '🐳 Building Docker image...'
+                // Dockerfile лежит в корне (.)
+                sh "docker build -t ${DOCKER_IMAGE} ."
+            }
+        }
+
+        stage('Inject Vault Secrets') {
+            steps {
+                echo '🔐 Writing secrets to Vault...'
+                script {
+                    try {
+                        // 1. Запускаем port-forward в фоне
+                        sh 'kubectl port-forward svc/vault 8200:8200 > /dev/null 2>&1 &'
+                        sh 'sleep 4' // Ждём, пока порт откроется
+
+                        // 2. Записываем секреты
+                        sh """
+                            curl -s -X POST \\
+                              http://localhost:8200/v1/secret/data/${APP_NAME} \\
+                              -H "X-Vault-Token: ${VAULT_TOKEN}" \\
+                              -H "Content-Type: application/json" \\
+                              -d '{
+                                "data": {
+                                  "mongo_uri": "mongodb://test:test@mongodb:27017/currency-bot?authSource=admin",
+                                  "mongo_username": "test",
+                                  "mongo_password": "test",
+                                  "rabbitmq_host": "rabbitmq",
+                                  "rabbitmq_username": "test",
+                                  "rabbitmq_password": "test",
+                                  "bot_token": "8312519972:AAGrLasXJtoR0HNY5Pa0WLikJkzOtv7s5gE"
+                                }
+                              }'
+                        """
+                    } finally {
+                        // 3. Гарантированно убиваем port-forward
+                        sh 'pkill -f "kubectl port-forward" || true'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy Infrastructure & App') {
+            steps {
+                echo '☸️ Applying Kubernetes manifests...'
+                // Применяем инфраструктуру первыми
+                sh "kubectl apply -f ${K8S_DIR}/mongodb.yaml"
+                sh "kubectl apply -f ${K8S_DIR}/rabbitmq.yaml"
+                sh "kubectl apply -f ${K8S_DIR}/vault.yaml"
+
+                // Затем приложение
+                sh "kubectl apply -f ${K8S_DIR}/configmap.yaml"
+                sh "kubectl apply -f ${K8S_DIR}/deployment.yaml"
+                sh "kubectl apply -f ${K8S_DIR}/service.yaml"
+            }
+        }
+
+        stage('Wait & Verify') {
+            steps {
+                echo '⏳ Waiting for pods to be ready...'
+                // Ждём готовности подов (таймаут увеличен для локального K8s)
+                sh "kubectl wait --for=condition=ready pod -l app=mongodb --timeout=60s || true"
+                sh "kubectl wait --for=condition=ready pod -l app=rabbitmq --timeout=60s || true"
+                sh "kubectl wait --for=condition=ready pod -l app=vault --timeout=60s || true"
+                sh "kubectl wait --for=condition=ready pod -l app=${APP_NAME} --timeout=180s || echo '⚠️ App pod may still be starting'"
+
+                echo '📊 Current status:'
+                sh 'kubectl get pods'
+                echo '🚀 Pipeline finished. Check bot in Telegram!'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo '🧹 Cleaning workspace...'
+            cleanWs()
+            // На всякий случай убиваем зависшие port-forward процессы
+            sh 'pkill -f "kubectl port-forward" || true'
+        }
+        success {
+            echo '🟢 PIPELINE SUCCESS! Bot should be running.'
+        }
+        failure {
+            echo '🔴 PIPELINE FAILED. Debug commands:'
+            sh 'kubectl get pods || true'
+            sh 'kubectl logs -l app=currency-bot --tail=30 || true'
+        }
+    }
+}

@@ -7,10 +7,9 @@ pipeline {
         DOCKER_IMAGE = "${APP_NAME}:latest"
         K8S_DIR = 'lab7/k8s'
         VAULT_TOKEN = 'test-token'
-        // Пути к инструментам внутри контейнера
         DOCKER_CLI = '/tmp/docker'
         KUBECTL_CLI = '/tmp/kubectl'
-        KUBE_CONFIG = '/tmp/kubeconfig'
+        // KUBECONFIG берётся из переменной окружения контейнера (/root/.kube/config)
     }
 
     stages {
@@ -18,7 +17,7 @@ pipeline {
             steps {
                 echo '🔧 Installing Linux Docker CLI and kubectl...'
                 script {
-                    // 1. Скачиваем Docker CLI для Linux (статический бинарник)
+                    // 1. Скачиваем Docker CLI для Linux
                     sh '''
                         if [ ! -f ${DOCKER_CLI} ]; then
                             echo "⬇️ Downloading Docker CLI for Linux..."
@@ -39,18 +38,26 @@ pipeline {
                         fi
                     '''
 
-                    // 3. Копируем и чиним kube config (важно для Docker Desktop K8s)
+                    // 3. Проверяем подключение к Docker
                     sh '''
-                        if [ -f /var/jenkins_home/.kube/config ]; then
-                            echo "🔐 Fixing kubeconfig paths..."
-                            cp /var/jenkins_home/.kube/config ${KUBE_CONFIG}
-                            # Заменяем абсолютные пути на сертификаты (если есть)
-                            # Для Docker Desktop K8s обычно не требуется, но на всякий случай
-                            sed -i 's|/Users/[^/]*/||g' ${KUBE_CONFIG} 2>/dev/null || true
-                            sed -i 's|/home/[^/]*/||g' ${KUBE_CONFIG} 2>/dev/null || true
+                        echo "🔌 Testing Docker connection..."
+                        if ${DOCKER_CLI} info > /dev/null 2>&1; then
+                            echo "✅ Docker daemon connected!"
                         else
-                            echo "⚠️ No kubeconfig found, using default"
-                            export KUBECONFIG=""
+                            echo "❌ Cannot connect to Docker daemon. Trying with sudo..."
+                            # На случай проблем с правами
+                            ${DOCKER_CLI} version || true
+                        fi
+                    '''
+
+                    // 4. Проверяем подключение к Kubernetes
+                    sh '''
+                        echo "🔌 Testing Kubernetes connection..."
+                        if ${KUBECTL_CLI} cluster-info > /dev/null 2>&1; then
+                            echo "✅ Kubernetes cluster connected!"
+                        else
+                            echo "⚠️ Kubernetes connection may have issues (check kubeconfig)"
+                            ${KUBECTL_CLI} config view --minify 2>/dev/null || true
                         fi
                     '''
                 }
@@ -79,7 +86,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo '🐳 Building Docker image...'
-                // Используем скачанный Docker CLI
                 sh "${DOCKER_CLI} build -t ${DOCKER_IMAGE} ."
             }
         }
@@ -89,8 +95,7 @@ pipeline {
                 echo '🔐 Writing secrets to Vault...'
                 script {
                     try {
-                        // Используем скачанный kubectl с исправленным конфигом
-                        sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} port-forward svc/vault 8200:8200 > /dev/null 2>&1 &"
+                        sh "${KUBECTL_CLI} port-forward svc/vault 8200:8200 > /dev/null 2>&1 &"
                         sh 'sleep 4'
 
                         sh """
@@ -120,25 +125,25 @@ pipeline {
         stage('Deploy Infrastructure & App') {
             steps {
                 echo '☸️ Applying Kubernetes manifests...'
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/mongodb.yaml"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/rabbitmq.yaml"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/vault.yaml"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/configmap.yaml"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/deployment.yaml"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} apply -f ${K8S_DIR}/service.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/mongodb.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/rabbitmq.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/vault.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/configmap.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/deployment.yaml"
+                sh "${KUBECTL_CLI} apply -f ${K8S_DIR}/service.yaml"
             }
         }
 
         stage('Wait & Verify') {
             steps {
                 echo '⏳ Waiting for pods to be ready...'
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} wait --for=condition=ready pod -l app=mongodb --timeout=60s || true"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} wait --for=condition=ready pod -l app=rabbitmq --timeout=60s || true"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} wait --for=condition=ready pod -l app=vault --timeout=60s || true"
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} wait --for=condition=ready pod -l app=${APP_NAME} --timeout=180s || echo '⚠️ App pod may still be starting'"
+                sh "${KUBECTL_CLI} wait --for=condition=ready pod -l app=mongodb --timeout=60s || true"
+                sh "${KUBECTL_CLI} wait --for=condition=ready pod -l app=rabbitmq --timeout=60s || true"
+                sh "${KUBECTL_CLI} wait --for=condition=ready pod -l app=vault --timeout=60s || true"
+                sh "${KUBECTL_CLI} wait --for=condition=ready pod -l app=${APP_NAME} --timeout=180s || echo '⚠️ App pod may still be starting'"
 
                 echo '📊 Current status:'
-                sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} get pods"
+                sh "${KUBECTL_CLI} get pods"
                 echo '🚀 Pipeline finished. Check bot in Telegram!'
             }
         }
@@ -155,8 +160,8 @@ pipeline {
         }
         failure {
             echo '🔴 PIPELINE FAILED. Debug commands:'
-            sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} get pods || true"
-            sh "KUBECONFIG=${KUBE_CONFIG} ${KUBECTL_CLI} logs -l app=currency-bot --tail=30 || true"
+            sh "${KUBECTL_CLI} get pods || true"
+            sh "${KUBECTL_CLI} logs -l app=currency-bot --tail=30 || true"
         }
     }
 }

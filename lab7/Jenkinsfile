@@ -5,7 +5,6 @@ pipeline {
         APP_NAME = 'currency-converter-bot'
         APP_VERSION = '0.0'
         DOCKER_IMAGE = "${APP_NAME}:latest"
-        // Пути относительно КОРНЯ репозитория (откуда Jenkins клонирует код)
         K8S_DIR = 'lab7/k8s'
         VAULT_TOKEN = 'test-token'
     }
@@ -43,10 +42,8 @@ pipeline {
                 echo '🔐 Writing secrets to Vault...'
                 script {
                     try {
-                        // Запускаем port-forward с абсолютным путём
                         sh '/usr/local/bin/kubectl port-forward svc/vault 8200:8200 > /dev/null 2>&1 &'
                         sh 'sleep 4'
-
                         sh """
                             curl -s -X POST \\
                               http://localhost:8200/v1/secret/data/${APP_NAME} \\
@@ -74,7 +71,6 @@ pipeline {
         stage('Deploy Infrastructure & App') {
             steps {
                 echo '☸️ Applying Kubernetes manifests...'
-                // Используем абсолютный путь к kubectl
                 sh "/usr/local/bin/kubectl apply -f ${K8S_DIR}/mongodb.yaml"
                 sh "/usr/local/bin/kubectl apply -f ${K8S_DIR}/rabbitmq.yaml"
                 sh "/usr/local/bin/kubectl apply -f ${K8S_DIR}/vault.yaml"
@@ -91,27 +87,26 @@ pipeline {
                 sh "/usr/local/bin/kubectl wait --for=condition=ready pod -l app=rabbitmq --timeout=60s || true"
                 sh "/usr/local/bin/kubectl wait --for=condition=ready pod -l app=vault --timeout=60s || true"
                 sh "/usr/local/bin/kubectl wait --for=condition=ready pod -l app=${APP_NAME} --timeout=180s || echo '⚠️ App pod may still be starting'"
-
                 echo '📊 Current status:'
                 sh '/usr/local/bin/kubectl get pods'
                 echo '🚀 Pipeline finished. Check bot in Telegram!'
             }
         }
+    }  // ← ЗАКРЫВАЕМ stages
 
-        post {
-            always {
-                echo '🧹 Cleaning workspace...'
-                cleanWs()
-                sh 'pkill -f "kubectl port-forward" || true'
-            }
-            success {
-                echo '🟢 PIPELINE SUCCESS! Bot should be running.'
-            }
-            failure {
-                echo '🔴 PIPELINE FAILED. Debug commands:'
-                sh '/usr/local/bin/kubectl get pods || true'
-                sh '/usr/local/bin/kubectl logs -l app=currency-bot --tail=30 || true'
-            }
+    post {  // ← post НА ОДНОМ УРОВНЕ с stages
+        always {
+            echo '🧹 Cleaning workspace...'
+            cleanWs()
+            sh 'pkill -f "kubectl port-forward" || true'
+        }
+        success {
+            echo '🟢 PIPELINE SUCCESS! Bot should be running.'
+        }
+        failure {
+            echo '🔴 PIPELINE FAILED. Debug commands:'
+            sh '/usr/local/bin/kubectl get pods || true'
+            sh '/usr/local/bin/kubectl logs -l app=currency-bot --tail=30 || true'
         }
     }
 }

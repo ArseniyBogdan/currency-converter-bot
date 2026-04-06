@@ -81,6 +81,38 @@ pipeline {
             }
         }
 
+        stage('Wait for SSH') {
+            steps {
+                echo '⏳ Waiting for VM to be ready for SSH...'
+                script {
+                    // Читаем IP из inventory
+                    def vmIP = sh(
+                        script: "grep ansible_host ${INVENTORY_FILE} | awk '{print \$2}'",
+                        returnStdout: true
+                    ).trim()
+                    echo "🎯 Waiting for SSH on ${vmIP}..."
+
+                    // Ждём, пока SSH станет доступен (максимум 5 минут)
+                    def maxAttempts = 30
+                    def attempt = 0
+                    while (attempt < maxAttempts) {
+                        try {
+                            sh "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/mykey ubuntu@${vmIP} 'echo SSH OK' || exit 1"
+                            echo "✅ SSH is ready!"
+                            break
+                        } catch (Exception e) {
+                            attempt++
+                            echo "⏳ Attempt ${attempt}/${maxAttempts}: SSH not ready yet, waiting 10s..."
+                            sleep(time: 10, unit: 'SECONDS')
+                        }
+                    }
+                    if (attempt >= maxAttempts) {
+                        error("❌ SSH did not become ready after ${maxAttempts} attempts")
+                    }
+                }
+            }
+        }
+
         stage('Ansible Playbook') {
             steps {
                 echo '🏗 Running playbook...'

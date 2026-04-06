@@ -20,11 +20,28 @@ pipeline {
             steps {
                 echo '☁️ Creating infrastructure...'
                 dir("${TF_DIR}") {
-                    withCredentials([string(credentialsId: 'yc-token', variable: 'YC_TOKEN')]) {
+                    withCredentials([
+                        string(credentialsId: 'yc-token', variable: 'YC_TOKEN'),
+                        string(credentialsId: 'ssh-public-key', variable: 'SSH_PUBLIC_KEY')  // ← добавляем
+                    ]) {
                         sh '''
                             export YC_TOKEN=${YC_TOKEN}
+
+                            # Если SSH_PUBLIC_KEY не задан, пробуем прочитать из файла
+                            if [ -z "${SSH_PUBLIC_KEY}" ]; then
+                                if [ -f ~/.ssh/id_rsa.pub ]; then
+                                    SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+                                elif [ -f /var/jenkins_home/.ssh/id_rsa.pub ]; then
+                                    SSH_PUBLIC_KEY=$(cat /var/jenkins_home/.ssh/id_rsa.pub)
+                                else
+                                    echo "❌ SSH public key not found!"
+                                    exit 1
+                                fi
+                            fi
+
                             terraform init -input=false
-                            terraform apply -auto-approve -input=false
+                            terraform apply -auto-approve -input=false \
+                                -var "ssh_public_key=${SSH_PUBLIC_KEY}"
                             terraform output -json > ../terraform_outputs.json || true
                         '''
                     }

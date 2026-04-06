@@ -1,5 +1,5 @@
 pipeline {
-    agent none  // ← не используем агента по умолчанию
+    agent any  // ← один агент для всех стадий
 
     environment {
         TF_DIR = 'lab6/terraform'
@@ -10,23 +10,15 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            agent any  // ← для checkout нужен любой агент
             steps {
                 echo '📥 Checking out...'
                 checkout scm
-                stash includes: 'lab6/**', name: 'lab6-code'
             }
         }
 
         stage('Terraform Apply') {
-            agent {
-                docker {
-                    image 'hashicorp/terraform:latest'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
-                }
-            }
             steps {
-                unstash 'lab6-code'
+                echo '☁️ Creating infrastructure...'
                 dir("${TF_DIR}") {
                     withCredentials([string(credentialsId: 'yc-token', variable: 'YC_TOKEN')]) {
                         sh '''
@@ -41,9 +33,7 @@ pipeline {
         }
 
         stage('Generate Inventory') {
-            agent any
             steps {
-                unstash 'lab6-code'
                 echo '📝 Generating inventory...'
                 sh """
                     chmod +x ${GEN_INV_SCRIPT}
@@ -55,14 +45,8 @@ pipeline {
         }
 
         stage('Ansible Playbook') {
-            agent {
-                docker {
-                    image 'ansible/ansible:latest'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
-                }
-            }
             steps {
-                unstash 'lab6-code'
+                echo '🏗 Running playbook...'
                 dir("${ANSIBLE_DIR}") {
                     withCredentials([string(credentialsId: 'bot-token', variable: 'BOT_TOKEN')]) {
                         sh '''
@@ -75,14 +59,8 @@ pipeline {
         }
 
         stage('Ansible Deploy') {
-            agent {
-                docker {
-                    image 'ansible/ansible:latest'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock -u root'
-                }
-            }
             steps {
-                unstash 'lab6-code'
+                echo '🚀 Deploying app...'
                 dir("${ANSIBLE_DIR}") {
                     sh '''
                         ansible-playbook -i inventory.yml deploy.yml -v
@@ -92,7 +70,6 @@ pipeline {
         }
 
         stage('Verify') {
-            agent any
             steps {
                 script {
                     def vmIP = sh(
@@ -113,13 +90,16 @@ pipeline {
 
     post {
         success {
-            echo '🎉 Success!'
+            echo '🎉 Pipeline completed successfully!'
         }
         failure {
-            echo '❌ Failed!'
+            echo '❌ Pipeline failed. Check console output.'
         }
         always {
-            cleanWs()
+            // cleanWs() требует node {}, поэтому оборачиваем
+            node {
+                cleanWs()
+            }
         }
     }
 }

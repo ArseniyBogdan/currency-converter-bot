@@ -63,20 +63,20 @@ pipeline {
         stage('Generate Inventory') {
             steps {
                 echo '📝 Generating inventory...'
-                // Выполняем всё из корня рабочего пространства, чтобы пути были корректны
                 sh """
-                    chmod +x ${GEN_INV_SCRIPT}
+                    # Используем абсолютные пути от корня workspace
+                    chmod +x \${WORKSPACE}/${GEN_INV_SCRIPT}
 
-                    # Генерируем output из Terraform
-                    cd ${TF_DIR}
-                    terraform output -json > ../terraform_outputs.json || true
-                    cd - > /dev/null  # Возвращаемся в корень
+                    # Генерируем output из Terraform (абсолютный путь)
+                    \${WORKSPACE}/${TF_DIR}/terraform output -json > \${WORKSPACE}/terraform_outputs.json || true
 
-                    # Запускаем скрипт генерации (путь относительно корня)
-                    ./${GEN_INV_SCRIPT}
+                    # Запускаем скрипт, передавая ему пути как аргументы (опционально)
+                    # Или просто запускаем из правильной директории:
+                    cd \${WORKSPACE}/${ANSIBLE_DIR}
+                    ./generate_inventory.sh
 
                     # Показываем результат
-                    cat ${INVENTORY_FILE}
+                    cat \${WORKSPACE}/${INVENTORY_FILE}
                 """
             }
         }

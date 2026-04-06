@@ -210,7 +210,7 @@ public class RatesServiceImpl implements RatesService, RatesForMathService {
 
     public Mono<Boolean> isCurrencyExists(String currencyCode){
         return currencyDAO.findByCode(currencyCode)
-                .map(_ -> true)
+                .map(ignored -> true)
                 .switchIfEmpty(Mono.just(false));
     }
 

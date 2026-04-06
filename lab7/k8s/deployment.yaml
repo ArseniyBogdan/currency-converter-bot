@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currency-bot
+  labels:
+    app: currency-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: currency-bot
+  template:
+    metadata:
+      labels:
+        app: currency-bot
+    spec:
+      containers:
+        - name: bot
+          image: currency-converter-bot:latest
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 8081
+              name: http
+              protocol: TCP
+
+          # Явно прописываем ВСЕ переменные. Никаких envFrom.
+          env:
+            # --- Vault (ТОЛЬКО ХОСТ, без http:// и без порта!) ---
+            - name: SPRING_CLOUD_VAULT_URI
+              value: "vault"  # ← Имя сервиса, ваш код добавит http:// и :порт
+            - name: SPRING_CLOUD_VAULT_PORT
+              value: "8200"
+            - name: SPRING_CLOUD_VAULT_TOKEN
+              value: "test-token"
+            - name: SPRING_CLOUD_VAULT_AUTHENTICATION
+              value: "TOKEN"
+
+            # --- MongoDB ---
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://test:test@mongodb:27017/currency-bot?authSource=admin"
+
+            # --- RabbitMQ ---
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: SPRING_RABBITMQ_USERNAME
+              value: "test"
+            - name: SPRING_RABBITMQ_PASSWORD
+              value: "test"
+
+            # --- Telegram ---
+            - name: TELEGRAM_BOT_TOKEN
+              value: "8312519972:AAGrLasXJtoR0HNY5Pa0WLikJkzOtv7s5gE"
+
+#          # Проверки здоровья
+#          livenessProbe:
+#            httpGet:
+#              path: /actuator/health  # ← Один общий эндпоинт
+#              port: 8081
+#            initialDelaySeconds: 60   # ← Больше времени на старт
+#            periodSeconds: 10
+#            failureThreshold: 5       # ← Больше попыток перед рестартом
+#          readinessProbe:
+#            httpGet:
+#              path: /actuator/health  # ← Один общий эндпоинт
+#              port: 8081
+#            initialDelaySeconds: 40   # ← Больше времени на старт
+#            periodSeconds: 5
+#            failureThreshold: 3
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"

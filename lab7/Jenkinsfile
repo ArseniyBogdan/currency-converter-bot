@@ -21,7 +21,12 @@ pipeline {
         stage('Build FatJar') {
             steps {
                 echo '🔨 Building fatJar...'
-                sh 'chmod +x gradlew && ./gradlew clean fatJar -x test'
+                sh '''
+                    chmod +x gradlew
+                    ./gradlew clean fatJar -x test --no-daemon \
+                      -Dorg.gradle.internal.http.connectionTimeout=120000 \
+                      -Dorg.gradle.internal.http.socketTimeout=120000
+                '''
             }
         }
 

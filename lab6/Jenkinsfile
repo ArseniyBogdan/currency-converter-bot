@@ -18,16 +18,16 @@ pipeline {
 
         stage('Terraform Apply') {
             steps {
-                echo '☁️ Creating infrastructure...'
+                echo '☁️ Managing infrastructure...'
                 dir("${TF_DIR}") {
                     withCredentials([
                         string(credentialsId: 'yc-token', variable: 'YC_TOKEN'),
-                        string(credentialsId: 'ssh-public-key', variable: 'SSH_PUBLIC_KEY')  // ← добавляем
+                        string(credentialsId: 'ssh-public-key', variable: 'SSH_PUBLIC_KEY')
                     ]) {
                         sh '''
                             export YC_TOKEN=${YC_TOKEN}
 
-                            # Если SSH_PUBLIC_KEY не задан, пробуем прочитать из файла
+                            # Читаем SSH ключ, если не передан
                             if [ -z "${SSH_PUBLIC_KEY}" ]; then
                                 if [ -f ~/.ssh/id_rsa.pub ]; then
                                     SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
@@ -39,9 +39,20 @@ pipeline {
                                 fi
                             fi
 
+                            # 🔥 ИНИЦИАЛИЗАЦИЯ
                             terraform init -input=false
+
+                            # 🔥 СНАЧАЛА УДАЛЯЕМ СТАРОЕ (если есть)
+                            echo '🗑️ Destroying existing resources (if any)...'
+                            terraform destroy -auto-approve -input=false \
+                                -var "ssh_public_key=${SSH_PUBLIC_KEY}" || true
+
+                            # 🔥 ПОТОМ СОЗДАЁМ НОВОЕ
+                            echo '✨ Creating new infrastructure...'
                             terraform apply -auto-approve -input=false \
                                 -var "ssh_public_key=${SSH_PUBLIC_KEY}"
+
+                            # Сохраняем output для Ansible
                             terraform output -json > ../terraform_outputs.json || true
                         '''
                     }

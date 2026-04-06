@@ -17,6 +17,7 @@ if [ -z "$VM_IP" ]; then
 fi
 
 # Создаём inventory в формате YAML
+ Создаём inventory БЕЗ указания ключа (sshagent сам его подставит)
 cat > "$INV_FILE" << EOF
 all:
   children:
@@ -26,8 +27,8 @@ all:
           ansible_host: $VM_IP
           vars:
             ansible_user: ubuntu
-            ansible_ssh_private_key_file: $KEY_FILE
             ansible_python_interpreter: /usr/bin/python3
+            # ansible_ssh_private_key_file не нужен при использовании sshagent!
 EOF
 
 echo "✅ Inventory создан: $INV_FILE"

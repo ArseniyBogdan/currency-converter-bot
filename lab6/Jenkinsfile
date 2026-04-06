@@ -92,22 +92,25 @@ pipeline {
                     ).trim()
                     echo "🎯 Waiting for SSH on ${vmIP}..."
 
-                    // Ждём, пока SSH станет доступен (максимум 5 минут)
-                    def maxAttempts = 30
-                    def attempt = 0
-                    while (attempt < maxAttempts) {
-                        try {
-                            sh "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i ~/.ssh/mykey ubuntu@${vmIP} 'echo SSH OK' || exit 1"
-                            echo "✅ SSH is ready!"
-                            break
-                        } catch (Exception e) {
-                            attempt++
-                            echo "⏳ Attempt ${attempt}/${maxAttempts}: SSH not ready yet, waiting 10s..."
-                            sleep(time: 10, unit: 'SECONDS')
+                    // Используем sshagent для безопасной работы с ключом
+                    sshagent(credentials: ['vm-ssh-key']) {
+                        def maxAttempts = 30
+                        def attempt = 0
+                        while (attempt < maxAttempts) {
+                            try {
+                                // sshagent автоматически подставит ключ, не нужно указывать -i
+                                sh "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@${vmIP} 'echo SSH OK' || exit 1"
+                                echo "✅ SSH is ready!"
+                                break
+                            } catch (Exception e) {
+                                attempt++
+                                echo "⏳ Attempt ${attempt}/${maxAttempts}: SSH not ready yet, waiting 10s..."
+                                sleep(time: 10, unit: 'SECONDS')
+                            }
                         }
-                    }
-                    if (attempt >= maxAttempts) {
-                        error("❌ SSH did not become ready after ${maxAttempts} attempts")
+                        if (attempt >= maxAttempts) {
+                            error("❌ SSH did not become ready after ${maxAttempts} attempts")
+                        }
                     }
                 }
             }
@@ -118,10 +121,12 @@ pipeline {
                 echo '🏗 Running playbook...'
                 dir("${ANSIBLE_DIR}") {
                     withCredentials([string(credentialsId: 'bot-token', variable: 'BOT_TOKEN')]) {
-                        sh '''
-                            ansible-playbook -i inventory.yml playbook.yml \
-                                --extra-vars "bot_token=${BOT_TOKEN}" -v
-                        '''
+                        sshagent(credentials: ['vm-ssh-key']) {  // ← ДОБАВЛЕНО
+                            sh '''
+                                ansible-playbook -i inventory.yml playbook.yml \
+                                    --extra-vars "bot_token=${BOT_TOKEN}" -v
+                            '''
+                        }  // ← ЗАКРЫТ БЛОК
                     }
                 }
             }
@@ -131,9 +136,11 @@ pipeline {
             steps {
                 echo '🚀 Deploying app...'
                 dir("${ANSIBLE_DIR}") {
-                    sh '''
-                        ansible-playbook -i inventory.yml deploy.yml -v
-                    '''
+                    sshagent(credentials: ['vm-ssh-key']) {  // ← ДОБАВЛЕНО
+                        sh '''
+                            ansible-playbook -i inventory.yml deploy.yml -v
+                        '''
+                    }  // ← ЗАКРЫТ БЛОК
                 }
             }
         }

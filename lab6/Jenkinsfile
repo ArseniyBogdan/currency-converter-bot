@@ -1,5 +1,5 @@
 pipeline {
-    agent any  // ← один агент для всех стадий
+    agent any  // один агент для всех стадий
 
     environment {
         TF_DIR = 'lab6/terraform'
@@ -11,14 +11,14 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo '📥 Checking out...'
+                echo 'Checking out...'
                 checkout scm
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                echo '☁️ Managing infrastructure...'
+                echo 'Managing infrastructure...'
                 dir("${TF_DIR}") {
                     withCredentials([
                         string(credentialsId: 'yc-token', variable: 'YC_TOKEN'),
@@ -34,21 +34,21 @@ pipeline {
                                 elif [ -f /var/jenkins_home/.ssh/id_rsa.pub ]; then
                                     SSH_PUBLIC_KEY=$(cat /var/jenkins_home/.ssh/id_rsa.pub)
                                 else
-                                    echo "❌ SSH public key not found!"
+                                    echo " SSH public key not found!"
                                     exit 1
                                 fi
                             fi
 
-                            # 🔥 ИНИЦИАЛИЗАЦИЯ
+                            # ИНИЦИАЛИЗАЦИЯ
                             terraform init -input=false
 
-                            # 🔥 СНАЧАЛА УДАЛЯЕМ СТАРОЕ (если есть)
-                            echo '🗑️ Destroying existing resources (if any)...'
+                            # СНАЧАЛА УДАЛЯЕМ СТАРОЕ (если есть)
+                            echo ' Destroying existing resources (if any)...'
                             terraform destroy -auto-approve -input=false \
                                 -var "ssh_public_key=${SSH_PUBLIC_KEY}" || true
 
-                            # 🔥 ПОТОМ СОЗДАЁМ НОВОЕ
-                            echo '✨ Creating new infrastructure...'
+                            # ПОТОМ СОЗДАЁМ НОВОЕ
+                            echo ' Creating new infrastructure...'
                             terraform apply -auto-approve -input=false \
                                 -var "ssh_public_key=${SSH_PUBLIC_KEY}"
 
@@ -62,7 +62,7 @@ pipeline {
 
         stage('Generate Inventory') {
             steps {
-                echo '📝 Generating inventory...'
+                echo 'Generating inventory...'
                 sh """
                     # Делаем скрипт исполняемым (абсолютный путь)
                     chmod +x \${WORKSPACE}/${GEN_INV_SCRIPT}
@@ -83,14 +83,14 @@ pipeline {
 
         stage('Wait for SSH') {
             steps {
-                echo '⏳ Waiting for VM to be ready for SSH...'
+                echo ' Waiting for VM to be ready for SSH...'
                 script {
                     // Читаем IP из inventory
                     def vmIP = sh(
                         script: "grep ansible_host ${INVENTORY_FILE} | awk '{print \$2}'",
                         returnStdout: true
                     ).trim()
-                    echo "🎯 Waiting for SSH on ${vmIP}..."
+                    echo " Waiting for SSH on ${vmIP}..."
 
                     // Используем sshagent для безопасной работы с ключом
                     sshagent(credentials: ['vm-ssh-key']) {
@@ -100,16 +100,16 @@ pipeline {
                             try {
                                 // sshagent автоматически подставит ключ, не нужно указывать -i
                                 sh "ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ubuntu@${vmIP} 'echo SSH OK' || exit 1"
-                                echo "✅ SSH is ready!"
+                                echo " SSH is ready!"
                                 break
                             } catch (Exception e) {
                                 attempt++
-                                echo "⏳ Attempt ${attempt}/${maxAttempts}: SSH not ready yet, waiting 10s..."
+                                echo " Attempt ${attempt}/${maxAttempts}: SSH not ready yet, waiting 10s..."
                                 sleep(time: 10, unit: 'SECONDS')
                             }
                         }
                         if (attempt >= maxAttempts) {
-                            error("❌ SSH did not become ready after ${maxAttempts} attempts")
+                            error("SSH did not become ready after ${maxAttempts} attempts")
                         }
                     }
                 }
@@ -118,15 +118,15 @@ pipeline {
 
         stage('Ansible Playbook') {
             steps {
-                echo '🏗 Running playbook...'
+                echo 'Running playbook...'
                 dir("${ANSIBLE_DIR}") {
                     withCredentials([string(credentialsId: 'bot-token', variable: 'BOT_TOKEN')]) {
-                        sshagent(credentials: ['vm-ssh-key']) {  // ← ДОБАВЛЕНО
+                        sshagent(credentials: ['vm-ssh-key']) {
                             sh '''
                                 ansible-playbook -i inventory.yml playbook.yml \
                                     --extra-vars "bot_token=${BOT_TOKEN}" -v
                             '''
-                        }  // ← ЗАКРЫТ БЛОК
+                        }
                     }
                 }
             }
@@ -134,13 +134,13 @@ pipeline {
 
         stage('Ansible Deploy') {
             steps {
-                echo '🚀 Deploying app...'
+                echo 'Deploying app...'
                 dir("${ANSIBLE_DIR}") {
-                    sshagent(credentials: ['vm-ssh-key']) {  // ← ДОБАВЛЕНО
+                    sshagent(credentials: ['vm-ssh-key']) {
                         sh '''
                             ansible-playbook -i inventory.yml deploy.yml -v
                         '''
-                    }  // ← ЗАКРЫТ БЛОК
+                    }
                 }
             }
         }
@@ -152,7 +152,7 @@ pipeline {
                         script: "grep ansible_host ${INVENTORY_FILE} | awk '{print \$2}'",
                         returnStdout: true
                     ).trim()
-                    echo "🎯 VM IP: ${vmIP}"
+                    echo " VM IP: ${vmIP}"
 
                     sshagent(credentials: ['vm-ssh-key']) {
                         sh """
@@ -166,13 +166,13 @@ pipeline {
 
         post {
             success {
-                echo '🎉 Pipeline completed successfully!'
+                echo 'Pipeline completed successfully!'
             }
             failure {
-                echo '❌ Pipeline failed. Check console output.'
+                echo 'Pipeline failed. Check console output.'
             }
             always {
-                // ✅ Чистим только временные файлы, но сохраняем state!
+                // Чистим только временные файлы, но сохраняем state!
                 sh '''
                     rm -rf lab6/terraform/.terraform/providers
                     rm -f lab6/terraform/.terraform.lock.hcl

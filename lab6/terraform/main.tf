@@ -1,8 +1,3 @@
-# Сеть
-#resource "yandex_vpc_network" "default" {
-#  name = "${var.vm_name}-network"
-#}
-
 resource "yandex_vpc_subnet" "default" {
   name           = "shklyarova-bot-vm-subnet-lab6"
   zone           = "ru-central1-d"
@@ -19,24 +14,27 @@ resource "yandex_compute_instance" "bot_vm" {
   zone        = "ru-central1-d"
   
   resources {
-    cores  = 2
-    memory = 2
+    cores  = 2 # ядра
+    memory = 2 # гб RAM
   }
-  
+
+  # настройки загрузочного диска
   boot_disk {
     initialize_params {
       image_id = "fd83c1pf8uf99qhppnvb"
       name     = "root-disk"
       type     = "network-hdd"
-      size     = 20
+      size     = 20 # гб
     }
   }
-  
+
+  # сетевой интерфейс
   network_interface {
     subnet_id = yandex_vpc_subnet.default.id
-    nat       = true
+    nat       = true # выдаем публичный ip
   }
-  
+
+  # берем ключ из переменной
   metadata = {
     ssh-keys = "ubuntu:${var.ssh_public_key}"
   }

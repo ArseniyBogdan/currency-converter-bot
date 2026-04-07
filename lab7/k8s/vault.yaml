@@ -23,9 +23,9 @@ spec:
           env:
             - name: VAULT_DEV_ROOT_TOKEN_ID
               value: "test-token"
-            - name: VAULT_ADDR  # ← ДОБАВИЛ! Как в Ansible
+            - name: VAULT_ADDR
               value: "http://0.0.0.0:8200"
-            - name: VAULT_DEV_LISTEN_ADDRESS  # ← ДОБАВИЛ! Явно
+            - name: VAULT_DEV_LISTEN_ADDRESS
               value: "0.0.0.0:8200"
           securityContext:
             capabilities:
@@ -42,7 +42,7 @@ spec:
               mountPath: /vault/file
       volumes:
         - name: vault-data
-          emptyDir: {}  # Временное хранилище (для лабы хватит)
+          emptyDir: {}  # Временное хранилище
 ---
 apiVersion: v1
 kind: Service

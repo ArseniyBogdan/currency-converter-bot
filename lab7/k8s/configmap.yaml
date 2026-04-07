@@ -5,10 +5,10 @@ metadata:
 data:
   # Vault
   SPRING_CLOUD_VAULT_URI: "http://vault:8200"
-  SPRING_CLOUD_VAULT_PORT: "8200"  # ← ВЕРНУЛ!
+  SPRING_CLOUD_VAULT_PORT: "8200"
 
   # MongoDB
-  MONGODB_HOST: "mongodb"
+  MONGODB_HOST: "mongodb" # DNS-имя сервиса
   MONGODB_PORT: "27017"
 
   # RabbitMQ

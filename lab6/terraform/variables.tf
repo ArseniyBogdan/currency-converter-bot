@@ -1,3 +1,4 @@
+#объявляются входные данные, которые можно менять, не правя основной код
 variable "cloud_id" {
   type        = string
   description = "Yandex Cloud ID"

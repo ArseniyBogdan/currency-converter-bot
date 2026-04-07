@@ -43,7 +43,7 @@
           SPRING_APPLICATION_NAME=currency-converter-bot
         mode: '0600'
 
-    # --- Создать systemd-сервис ---
+    # --- Создать systemd-сервис --- Регистрирует приложение как системный сервис
     - name: Create systemd service file
       copy:
         dest: /etc/systemd/system/currency-bot.service
@@ -96,8 +96,8 @@
     - name: Show deployment status
       debug:
         msg: |
-          ✅ Деплой завершён!
-          🤖 Бот: @my_currency_bot_test_bot
-          🔗 Health: http://127.0.0.1:8081/actuator/health
-          📝 Логи: sudo journalctl -u currency-bot -f
-          🔍 Статус: {{ '🟢 РАБОТАЕТ' if app_health.status == 200 else '🟡 ПРОВЕРЬТЕ ЛОГИ' }}
+          Деплой завершён!
+          Бот: @my_currency_bot_test_bot
+          Health: http://127.0.0.1:8081/actuator/health
+          Логи: sudo journalctl -u currency-bot -f
+          Статус: {{ 'РАБОТАЕТ' if app_health.status == 200 else 'ПРОВЕРЬТЕ ЛОГИ' }}

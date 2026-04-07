@@ -22,6 +22,8 @@ spec:
               value: "test"
             - name: MONGO_INITDB_ROOT_PASSWORD
               value: "test"
+
+# === Service: делает MongoDB доступной внутри кластера ===
 ---
 apiVersion: v1
 kind: Service

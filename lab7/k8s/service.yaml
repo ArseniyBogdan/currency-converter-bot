@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: currency-bot-service
 spec:
-  type: NodePort
+  type: NodePort # Тип сервиса: доступ через порт на ноде
   selector:
-    app: currency-bot
+    app: currency-bot # Направляет трафик на поды с этим лейблом
   ports:
     - name: http
       port: 8081

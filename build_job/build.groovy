@@ -1,7 +1,5 @@
 pipeline {
-    agent {
-        label 'arseniy-agent' 
-    }
+    agent any
 
     environment {
         JAVA_HOME = '/opt/jdk/jdk-23.0.2+7'

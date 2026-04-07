@@ -48,26 +48,6 @@ spec:
             - name: SPRING_RABBITMQ_PASSWORD
               value: "test"
 
-            # --- Telegram ---
-            - name: TELEGRAM_BOT_TOKEN
-              value: "8711598516:AAFAd73i2zpLqQ-3KDLBSX_MIiA3b9qwr5Q"
-
-#          # Проверки здоровья
-#          livenessProbe:
-#            httpGet:
-#              path: /actuator/health  # ← Один общий эндпоинт
-#              port: 8081
-#            initialDelaySeconds: 60   # ← Больше времени на старт
-#            periodSeconds: 10
-#            failureThreshold: 5       # ← Больше попыток перед рестартом
-#          readinessProbe:
-#            httpGet:
-#              path: /actuator/health  # ← Один общий эндпоинт
-#              port: 8081
-#            initialDelaySeconds: 40   # ← Больше времени на старт
-#            periodSeconds: 5
-#            failureThreshold: 3
-
           resources:
             requests:
               memory: "512Mi"

@@ -6,7 +6,7 @@
 
   vars:
     # === ВАШИ ЗНАЧЕНИЯ ===
-    bot_token: "8312519972:AAGrLasXJtoR0HNY5Pa0WLikJkzOtv7s5gE"
+    bot_token: "REPLACE_VIA_JENKINS_EXTRA_VARS"
     app_dir: /opt/currency-converter-bot
     repo_url: "https://github.com/ArseniyBogdan/currency-converter-bot.git"
     repo_branch: "jenkins-shklyarova"

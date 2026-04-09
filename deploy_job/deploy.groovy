@@ -73,7 +73,7 @@ pipeline {
                 script {
                     printLog("Получаем Public IP из артефактов infra job...", '🖥️', 36)
                     
-                    copyArtifacts projectName: 'create-infra', // Имя вашей джобы инфраструктуры
+                    copyArtifacts projectName: 'deploy-infra', // Имя вашей джобы инфраструктуры
                                 filter: 'server_public_ip.txt',       // Фильтруем по новому файлу
                                 target: '.',
                                 selector: lastSuccessful(),

@@ -2,17 +2,19 @@ pipeline {
     agent any
     
     environment {
-        OS_CREDENTIALS_ID = 'rc-credentials-arseniy'
-        STACK_NAME = "currency-converter-bot-infra-arseniy"
+        // ID креденшиала с SSH ключом
+        SSH_KEY_NAME = 'ssh-private-key'
         
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         
-        // Имя credentials в Jenkins (SSH Username with private key)
-        SSH_KEY_NAME = 'Arseniy'
-
-        INFRA_ARTIFACT_JOB = 'Bogdan/create-infra'
-        BUILD_ARTIFACT_JOB = 'Bogdan/build'
+        // Имена джоб-источников
+        INFRA_ARTIFACT_JOB = 'deploy-infra'
+        BUILD_ARTIFACT_JOB = 'build'
+        
+        // Пути на удаленной машине
+        REMOTE_USER = 'ubuntu'
+        APP_DIR = '/opt/currency-converter-bot'
     }
     
     parameters {
@@ -24,21 +26,6 @@ pipeline {
             steps {
                 echo '📥 Клонируем репозиторий...'
                 checkout scm
-            }
-        }
-
-        stage('Prepare OpenStack Env') {
-            steps {
-                ansiColor('xterm') {
-                    printLog("Loading OpenStack credentials...", '🔐', 36)
-                    loadSecretsIntoEnv("${OS_CREDENTIALS_ID}")
-                    printLog("Testing OpenStack connection...", '🔑', 35)
-                    sh '''
-                        set +x
-                        openstack token issue -f yaml
-                    '''
-                    printSuccess("Auth successful")
-                }
             }
         }
 
@@ -60,17 +47,14 @@ pipeline {
                             
                             env.DOCKER_IMAGE = readFile('docker-image.txt').trim()
                             
-                            printDebug("🔍 Debug: env.DOCKER_IMAGE='${env.DOCKER_IMAGE}'")
-                            
                             if (!env.DOCKER_IMAGE) {
-                                printError("❌ Файл docker-image.txt пустой!")
                                 error("❌ Файл docker-image.txt пустой!")
                             }
                             
                             printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
                             
                         } catch (Exception e) {
-                            printError("❌ Ошибка: ${e.message}")
+                            printError("❌ Ошибка получения артефакта сборки: ${e.message}")
                             throw e
                         }
                     } else {
@@ -82,127 +66,124 @@ pipeline {
         }
 
         // ========================================================================
-        // 🖥️ Получаем VM IP из Infra Job
+        // 🖥️ Получаем VM IP из Infra Job (Terraform Output)
         // ========================================================================
         stage('Get VM IP from Infra Job') {
             steps {
                 script {
-                    printLog("Получаем IP виртуалки из артефактов infra job...", '🖥️', 36)
+                    printLog("Получаем Public IP из артефактов infra job...", '🖥️', 36)
                     
-                    copyArtifacts projectName: INFRA_ARTIFACT_JOB,
-                                filter: 'stack_outputs.json',
+                    copyArtifacts projectName: 'create-infra', // Имя вашей джобы инфраструктуры
+                                filter: 'server_public_ip.txt',       // Фильтруем по новому файлу
                                 target: '.',
                                 selector: lastSuccessful(),
                                 flatten: true
                     
-                    // ✅ Читаем файл
-                    def jsonContent = readFile('stack_outputs.json')
+                    // Читаем содержимое файла напрямую
+                    env.VM_IP = readFile('server_public_ip.txt').trim()
                     
-                    // ✅ Парсим через Groovy readJSON
-                    def outputs = readJSON text: jsonContent
-                    
-                    // ✅ Ищем server_private_ip (работает и для массива, и для объекта)
-                    def vmIpOutput = readJSON text: outputs['server_private_ip']
-                    
-                    if (vmIpOutput) {
-                        env.VM_IP = vmIpOutput['output_value'].trim()
-                        printSuccess("✅ VM IP: ${env.VM_IP}")
-                    } else {
-                        echo "⚠️ Доступные outputs:"
-                        outputs.each { out ->
-                            echo "  - ${out}"
-                        }
-                        error("❌ Не найдено 'server_private_ip'")
+                    if (!env.VM_IP) {
+                        error("❌ Файл server_public_ip.txt пуст или не найден!")
                     }
+                    
+                    printSuccess("✅ VM Public IP: ${env.VM_IP}")
                 }
             }
         }
         
         // ========================================================================
-        // 🐳 Pull Docker Image на VM (с SSH ключом из Jenkins)
+        // 🐳 Deploy to VM via SSH
         // ========================================================================
-        stage('Pull Docker Image on VM') {
+        stage('Deploy to Yandex Cloud VM') {
             steps {
-                sshagent(["${SSH_KEY_NAME}"]) {
-                    script {
-                        def VM_USER = 'ubuntu'
-                        def APP_DIR = '/opt/currency-converter-bot'
+                script {
+                    if (!env.VM_IP) {
+                        error("❌ Переменная VM_IP не установлена. Проверьте предыдущий шаг.")
+                    }
+
+                    sshagent(["${SSH_KEY_NAME}"]) {
+                        printLog("Подключение к ${REMOTE_USER}@${env.VM_IP}...", '🔗', 36)
                         
-                        printLog("Deploying to ${VM_USER}@${env.VM_IP}...", '🐳', 36)
-                        
-                        printStep("Copying docker-compose.yaml...")
+                        // 1. Копируем файлы конфигурации
+                        printStep("Копирование docker-compose.yaml...")
                         sh """
                             scp -o StrictHostKeyChecking=no \\
                                 -o UserKnownHostsFile=/dev/null \\
                                 docker-compose.yaml \\
-                                ${VM_USER}@${env.VM_IP}:~/docker-compose.yaml.tmp
+                                ${REMOTE_USER}@${env.VM_IP}:/tmp/docker-compose.yaml.tmp
                         """
 
-                        printStep("Copying .env from credentials...")
-
+                        printStep("Копирование .env...")
                         withCredentials([file(credentialsId: 'currency-bot-env-arseniy', variable: 'ENV_FILE')]) {
                             sh """
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\
                                     "\${ENV_FILE}" \\
-                                    ${VM_USER}@${env.VM_IP}:/tmp/.env.tmp
+                                    ${REMOTE_USER}@${env.VM_IP}:/tmp/.env.tmp
                             """
                         }
 
-                        printStep("Copying vault-init.sh from credentials...")
-
+                        printStep("Копирование vault-init.sh...")
                         withCredentials([file(credentialsId: 'vault-init-script-arseniy', variable: 'INIT_SCRIPT')]) {
                             sh """
                                 scp -o StrictHostKeyChecking=no \\
                                     -o UserKnownHostsFile=/dev/null \\
                                     "\${INIT_SCRIPT}" \\
-                                    ${VM_USER}@${env.VM_IP}:/tmp/init-vault.sh.tmp
+                                    ${REMOTE_USER}@${env.VM_IP}:/tmp/init-vault.sh.tmp
                             """
                         }
                         
-                        printStep("Pulling image and restarting containers...")
+                        // 2. Выполняем удаленные команды
+                        printStep("Развертывание приложения...")
                         
                         sh """
                             ssh -o StrictHostKeyChecking=no \\
                                 -o UserKnownHostsFile=/dev/null \\
-                                ${VM_USER}@${env.VM_IP} << 'REMOTEOF'
+                                ${REMOTE_USER}@${env.VM_IP} << 'REMOTEOF'
                                 
                                 set -e
+                                
                                 APP_DIR="${APP_DIR}"
+                                DOCKER_IMAGE="${env.DOCKER_IMAGE}"
+                                USER="${REMOTE_USER}"
                                 
-                                echo "📁 Moving files to app directory..."
-                                
-                                # Перемещаем docker-compose.yaml
-                                sudo mv ~/docker-compose.yaml.tmp \${APP_DIR}/docker-compose.yaml
-                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/docker-compose.yaml
-
-                                # ✅ Перемещаем .env из /tmp
-                                sudo mv /tmp/.env.tmp \${APP_DIR}/.env
-                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/.env
-                                sudo chmod 600 \${APP_DIR}/.env
-
-                                # ✅ Перемещаем init-vault.sh из /tmp
+                                echo "📁 Подготовка директории \${APP_DIR}..."
                                 sudo mkdir -p \${APP_DIR}/vault/scripts
+                                
+                                # Перемещаем файлы из /tmp в рабочую директорию
+                                sudo mv /tmp/docker-compose.yaml.tmp \${APP_DIR}/docker-compose.yaml
+                                sudo mv /tmp/.env.tmp \${APP_DIR}/.env
                                 sudo mv /tmp/init-vault.sh.tmp \${APP_DIR}/vault/scripts/init-vault.sh
-                                sudo chown ${VM_USER}:${VM_USER} \${APP_DIR}/vault/scripts/init-vault.sh
-                                sudo chmod 700 \${APP_DIR}/vault/scripts/init-vault.sh
+                                
+                                # Выставляем права
+                                sudo chown -R \${USER}:\${USER} \${APP_DIR}
+                                chmod 600 \${APP_DIR}/.env
+                                chmod 700 \${APP_DIR}/vault/scripts/init-vault.sh
                                 
                                 cd \${APP_DIR}
                                 
-                                echo "📥 Pulling image: ${env.DOCKER_IMAGE}"
-                                docker pull ${env.DOCKER_IMAGE}
+                                echo "📥 Pulling image: \${DOCKER_IMAGE}"
+                                docker pull \${DOCKER_IMAGE}
                                 
-                                echo "🔄 Updating image tag in docker-compose.yaml"
-                                sudo sed -i "s|<image>|${env.DOCKER_IMAGE}|g" docker-compose.yaml
+                                echo "🔄 Обновление тега в docker-compose.yaml"
+                                # Заменяем placeholder <image> или существующий image на новый
+                                # Убедитесь, что в docker-compose.yaml есть образ, который нужно менять.
+                                # Если вы используете переменную окружения в compose file, этот sed может не понадобиться.
+                                # Обычно лучше передавать IMAGE через .env или аргументы compose.
+                                # Здесь предполагаем, что вы хотите жестко зашить тег в yaml для простоты, 
+                                # либо замените эту строку на вашу логику обновления образа.
+                                sed -i "s|image: .*|image: \${DOCKER_IMAGE}|g" docker-compose.yaml || true
                                 
-                                echo "🚀 Restarting containers"
-                                docker compose down
+                                echo "🚀 Перезапуск контейнеров"
+                                docker compose down || true
                                 docker compose up -d
                                 
-                                echo "🧹 Cleaning up old images"
+                                echo "🧹 Очистка старых образов"
                                 docker image prune -f
                                 
-                                echo "✅ Deployment complete"
+                                echo "✅ Статус контейнеров:"
+                                docker compose ps
+                                
 REMOTEOF
 """
                     }
@@ -213,7 +194,6 @@ REMOTEOF
     
     post {
         always {
-            printLog("Deployment completed", '📊', 36)
             cleanWs()
         }
         failure {
@@ -243,51 +223,7 @@ def printLog(String message, String emoji = '', int colorCode = 36, boolean bold
     }
 }
 
-def printStageHeader(String stageName, String emoji = '', int colorCode = 36) {
-    def border = "=" * 22
-    def bold = "\\e[1m"
-    def color = "\\e[${colorCode}m"
-    def reset = "\\e[0m"
-    def display = emoji ? "${emoji} ${stageName}" : stageName
-
-    sh(script: "set +x && echo -e '${bold}${color}${border} ${display} ${border}${reset}'", returnStdout: false)
-}
-
-def printInfo(String message)    { printLog(message, 'ℹ️', 36) }
 def printSuccess(String message) { printLog(message, '✅', 32) }
-def printWarning(String message) { printLog(message, '⚠️', 33) }
 def printError(String message)   { printLog(message, '❌', 31) }
 def printDebug(String message)   { printLog(message, '🔍', 90) }
 def printStep(String message)    { printLog(message, '📍', 35) }
-
-def loadSecretsIntoEnv(String credentialId) {
-    withCredentials([string(credentialsId: credentialId, variable: 'SECRET_BLOB')]) {
-        def content = SECRET_BLOB
-        
-        content.split(' ').each { rawLine ->
-            try {
-                def line = rawLine.trim()
-                if (!line || line.startsWith('#')) return
-                
-                def parts = line.split('=', 2)
-                if (parts.length != 2) return
-                
-                def key = parts[0].trim()
-                def value = parts[1].trim()
-                
-                while (value.length() >= 2 && 
-                      ((value.startsWith('"') && value.endsWith('"')) || 
-                       (value.startsWith("'") && value.endsWith("'")))) {
-                    value = value.substring(1, value.length() - 1)
-                }
-                value = value.trim()
-                
-                env."${key}" = value
-                println "✅ Loaded: ${key}"
-                
-            } catch (Exception e) {
-                println "❌ Error loading ${key ?: 'unknown'}: ${e.message}"
-            }
-        }
-    }
-}

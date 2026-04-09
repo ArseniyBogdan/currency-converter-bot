@@ -3,8 +3,6 @@ pipeline {
 
     // Привязка секретов из Jenkins Credentials
     environment {
-
-        YC_TOKEN              = credentials('yc-token')
         TF_FOLDER_ID          = "b1gm94s1sde2ispi5k21"
         TF_SUBNET_ID          = "fl80id702e4irnblcd63"
         TF_SSH_PUB_KEY        = credentials('ssh-public-key')
@@ -16,6 +14,15 @@ pipeline {
     }
 
     stages {
+
+        stage('Preperation'){
+            steps {
+                withCredentials([string(credentialsId: 'oauth-token', variable: 'TOKEN')]) {
+                    sh 'yc config set token ${TOKEN}'
+                }
+            }
+        }
+
         stage('Terraform: Init & Plan') {
             steps {
                 dir('infra_job_2'){

@@ -10,8 +10,6 @@ pipeline {
         
         // Отключаем проверку SSH-ключей для новых ВМ
         ANSIBLE_HOST_KEY_CHECKING = 'False'
-
-        PATH = "${env.PATH}:${env.HOME}/bin:${env.HOME}/miniconda/bin"
     }
 
     stages {
@@ -45,16 +43,32 @@ pipeline {
             steps {
                 script {
                     dir('infra_job_2'){
-                        // Извлекаем публичный IP из вывода Terraform
-                        def serverIp = sh(
-                            script: 'terraform output -raw server_public_ip', 
-                            returnStdout: true
-                        ).trim()
-                        env.SERVER_IP = serverIp
-                        echo "🌍 Выделен IP: ${serverIp}"
+                        // 1. Извлекаем публичный IP из вывода Terraform
+                        // Используем try-catch на случай, если output еще не создан или пуст
+                        def serverIp = ""
+                        try {
+                            serverIp = sh(
+                                script: 'terraform output -raw server_public_ip', 
+                                returnStdout: true
+                            ).trim()
+                        } catch (Exception e) {
+                            error("❌ Не удалось получить server_public_ip из Terraform. Проверьте outputs.tf")
+                        }
 
+                        if (!serverIp) {
+                            error("❌ server_public_ip пуст!")
+                        }
+
+                        env.SERVER_IP = serverIp
+                        echo "🌍 Выделен Public IP: ${serverIp}"
+
+                        // 2. Сохраняем IP в файл для артефактов
+                        // Этот файл будет доступен другим джобам через copyArtifacts
+                        writeFile file: 'server_public_ip.txt', text: serverIp
+                        echo "💾 IP сохранен в server_public_ip.txt"
+
+                        // 3. Обновляем Ansible Inventory
                         // Заменяем плейсхолдер VM_IP в inventory.yml
-                        // Используем | как разделитель sed, чтобы избежать конфликтов с точками в IP
                         sh "sed -i 's|VM_IP|${serverIp}|g' ansible/inventory.yml"
                         echo "✅ inventory.yml обновлён"
                         
@@ -92,7 +106,7 @@ pipeline {
                 sh 'rm -f main.tf tfplan 2>/dev/null || true'
 
                 // Архивация логов Terraform и Ansible
-                archiveArtifacts artifacts: '**/*.log', allowEmptyArchive: true
+                archiveArtifacts artifacts: '**/*.log, server_public_ip.txt', allowEmptyArchive: true
             }
         }
         success {

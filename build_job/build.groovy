@@ -5,6 +5,7 @@ pipeline {
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        JAVA_HOME = "/usr/lib/jvm/temurin-23-jdk-amd64"
     }
 
     stages {

@@ -166,14 +166,8 @@ pipeline {
                                 docker pull \${DOCKER_IMAGE}
                                 
                                 echo "🔄 Обновление тега в docker-compose.yaml"
-                                # Заменяем placeholder <image> или существующий image на новый
-                                # Убедитесь, что в docker-compose.yaml есть образ, который нужно менять.
-                                # Если вы используете переменную окружения в compose file, этот sed может не понадобиться.
-                                # Обычно лучше передавать IMAGE через .env или аргументы compose.
-                                # Здесь предполагаем, что вы хотите жестко зашить тег в yaml для простоты, 
-                                # либо замените эту строку на вашу логику обновления образа.
-                                sed -i "s|image: .*|image: \${DOCKER_IMAGE}|g" docker-compose.yaml || true
-                                
+                                sudo sed -i "s|<image>|${env.DOCKER_IMAGE}|g" docker-compose.yaml
+
                                 echo "🚀 Перезапуск контейнеров"
                                 docker compose down || true
                                 docker compose up -d

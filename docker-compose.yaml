@@ -25,7 +25,7 @@ services:
       interval: 10s       
       timeout: 10s         
       retries: 5          
-      start_period: 30s
+      start_period: 10s
 
   # Сервис для загрузки секретов (запустится после Vault)
   vault-init:
@@ -63,7 +63,7 @@ services:
       interval: 10s       
       timeout: 5s         
       retries: 5          
-      start_period: 60s
+      start_period: 30s
     volumes:
       - mongo-data:/data/db
     environment:
@@ -81,7 +81,7 @@ services:
       interval: 10s       
       timeout: 5s         
       retries: 5          
-      start_period: 60s
+      start_period: 30s
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}

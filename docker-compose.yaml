@@ -23,9 +23,9 @@ services:
     healthcheck:
       test: ["CMD", "vault", "status", "-format=json"]
       interval: 10s       
-      timeout: 5s         
+      timeout: 10s         
       retries: 5          
-      start_period: 0s
+      start_period: 30s
 
   # Сервис для загрузки секретов (запустится после Vault)
   vault-init:

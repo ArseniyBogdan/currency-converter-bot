@@ -46,6 +46,10 @@ spec:
             echo "⏳ Waiting for Vault to start..."
             sleep 10  # Даём время Vault открыть порт
 
+            echo "🔐 Logging in to Vault..."
+            export VAULT_ADDR='http://127.0.0.1:8200'
+            export VAULT_TOKEN=${VAULT_TOKEN}
+
             echo "⏳ Waiting for Vault to be ready..."
             max_attempts=30
             attempt=0
@@ -63,10 +67,6 @@ spec:
               echo "❌ Vault failed to become ready after $max_attempts attempts"
               exit 1
             fi
-
-            echo "🔐 Logging in to Vault..."
-            export VAULT_ADDR='http://127.0.0.1:8200'
-            export VAULT_TOKEN=${VAULT_TOKEN}
 
             echo "📝 Writing secrets from ConfigMap..."
             for file in /vault/data/*; do

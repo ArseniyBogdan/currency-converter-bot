@@ -74,7 +74,7 @@ spec:
                 key=$(basename $file)
                 value=$(cat $file)
                 echo "Setting $key = $value"
-                vault kv put secret/app-config $key="$value" || {
+                vault kv put secret/currency-converter-bot $key="$value" || {
                   echo "⚠️ Failed to write $key, continuing..."
                 }
               fi

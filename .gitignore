@@ -39,3 +39,6 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+k8s/secret.yaml
+k8s/configmap.yaml
+k8s/vault-init-data.yaml

@@ -1,0 +1,171 @@
+apiVersion: apps/v1
+kind: Deployment
+meta
+  name: vault
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault
+  template:
+    metadata:
+      labels:
+        app: vault
+    spec:
+      initContainers:
+      - name: vault-init-secrets
+        image: hashicorp/vault:1.19
+        command: ['sh', '-c']
+        args:
+          - |
+            echo "Waiting for Vault to be ready..."
+            until vault status -format=json; do sleep 2; done
+            
+            echo "Logging in to Vault..."
+            export VAULT_ADDR='http://127.0.0.1:8200'
+            export VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID}
+            
+            echo "Writing secrets from ConfigMap..."
+            
+            for file in /vault/data/*; do
+              key=$(basename $file)
+              value=$(cat $file)
+              echo "Setting $key = $value"
+              vault kv put secret/currency-converter-bot $key="$value"
+            done
+            
+            echo "Vault initialization complete."
+        env:
+        - name: VAULT_DEV_ROOT_TOKEN_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: VAULT_TOKEN
+        volumeMounts:
+        - name: vault-data-volume
+          mountPath: /vault/data
+      containers:
+      - name: vault
+        image: hashicorp/vault:1.19
+        ports:
+        - containerPort: 8200
+        env:
+        - name: VAULT_DEV_ROOT_TOKEN_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: VAULT_TOKEN
+        - name: VAULT_ADDR
+          value: "http://127.0.0.1:8200"
+        command: ["server", "-dev"]
+        readinessProbe:
+          exec:
+            command: ["vault", "status", "-format=json"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: vault-data-volume
+        configMap:
+          name: vault-initial-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - name: mongo
+        image: mongo:latest
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MONGO_ROOT_USER
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: MONGO_ROOT_PASSWORD
+        readinessProbe:
+          exec:
+            command: ["mongosh", "--eval", "db.adminCommand('ping')"]
+          initialDelaySeconds: 10
+          periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: rabbitmq:3-management
+        ports:
+        - containerPort: 5672
+        - containerPort: 15672
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: RABBITMQ_DEFAULT_USER
+        - name: RABBITMQ_DEFAULT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: RABBITMQ_DEFAULT_PASS
+        readinessProbe:
+          exec:
+            command: ["rabbitmq-diagnostics", "check_running"]
+          initialDelaySeconds: 20
+          periodSeconds: 10
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: currency-converter-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: <IMAGE_PLACEHOLDER> # Будет заменено Jenkins
+        ports:
+        - containerPort: 8081
+        envFrom:
+        - configMapRef:
+            name: app-config
+        - secretRef:
+            name: app-secrets
+        # Переопределяем URI Vault, так как он зависит от имени сервиса
+        env:
+        - name: SPRING_CLOUD_VAULT_URI_FULL
+          value: "http://vault-service:8200"

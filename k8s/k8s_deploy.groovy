@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        KUBE_CONFIG_ID = 'minikube-kubeconfig' // ID креденшиала с kubeconfig
         K8S_DIR = 'k8s' // Папка с манифестами
     }
 
@@ -38,52 +37,48 @@ pipeline {
 
         stage('Deploy to Minikube') {
             steps {
-                withCredentials([file(credentialsId: KUBE_CONFIG_ID, variable: 'KUBECONFIG')]) {
-                    script {
-                        if (params.CLEAN_INSTALL) {
-                            echo "🧹 Очистка предыдущих ресурсов..."
-                            sh """
-                                kubectl delete -f ${K8S_DIR}/ --ignore-not-found=true
-                                sleep 10
-                            """
-                        }
-
-                        echo "🚀 Применение конфигурации Kubernetes..."
-                        
-                        // 1. Сервисы (чтобы DNS имена стали доступны)
-                        sh "kubectl apply -f ${K8S_DIR}/services.yaml"
-                        
-                        // 2. Деплойменты (Vault, Mongo, RabbitMQ, App)
-                        sh "kubectl apply -f ${K8S_DIR}/deployments.yaml"
-
-                        echo "⏳ Ожидание готовности подов..."
-                        // Ждем, пока все деплойменты будут готовы
+                script {
+                    if (params.CLEAN_INSTALL) {
+                        echo "🧹 Очистка предыдущих ресурсов..."
                         sh """
-                            kubectl rollout status deployment/vault --timeout=300s
-                            kubectl rollout status deployment/mongo --timeout=300s
-                            kubectl rollout status deployment/rabbitmq --timeout=300s
-                            kubectl rollout status deployment/currency-converter-bot --timeout=300s
+                            kubectl delete -f ${K8S_DIR}/ --ignore-not-found=true
+                            sleep 10
                         """
                     }
+
+                    echo "🚀 Применение конфигурации Kubernetes..."
+                    
+                    // 1. Сервисы (чтобы DNS имена стали доступны)
+                    sh "kubectl apply -f ${K8S_DIR}/services.yaml"
+                    
+                    // 2. Деплойменты (Vault, Mongo, RabbitMQ, App)
+                    sh "kubectl apply -f ${K8S_DIR}/deployments.yaml"
+
+                    echo "⏳ Ожидание готовности подов..."
+                    // Ждем, пока все деплойменты будут готовы
+                    sh """
+                        kubectl rollout status deployment/vault --timeout=300s
+                        kubectl rollout status deployment/mongo --timeout=300s
+                        kubectl rollout status deployment/rabbitmq --timeout=300s
+                        kubectl rollout status deployment/currency-converter-bot --timeout=300s
+                    """
                 }
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                withCredentials([file(credentialsId: KUBE_CONFIG_ID, variable: 'KUBECONFIG')]) {
-                    sh """
-                        echo "📊 Статус подов:"
-                        kubectl get pods
-                        
-                        echo "🌐 Сервисы:"
-                        kubectl get services
-                        
-                        # Получаем внешний IP для проверки
-                        APP_URL=\$(minikube service app-service --url | head -n 1)
-                        echo "🔗 Приложение доступно по адресу: \${APP_URL}"
-                    """
-                }
+                sh """
+                    echo "📊 Статус подов:"
+                    kubectl get pods
+                    
+                    echo "🌐 Сервисы:"
+                    kubectl get services
+                    
+                    # Получаем внешний IP для проверки
+                    APP_URL=\$(minikube service app-service --url | head -n 1)
+                    echo "🔗 Приложение доступно по адресу: \${APP_URL}"
+                """
             }
         }
     }

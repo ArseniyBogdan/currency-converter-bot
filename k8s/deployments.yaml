@@ -41,32 +41,50 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - |
+            set -e  # Выход при ошибке
+
+            echo "⏳ Waiting for Vault to start..."
+            sleep 10  # Даём время Vault открыть порт
+
             echo "⏳ Waiting for Vault to be ready..."
-            until curl -s http://127.0.0.1:8200/v1/sys/health; do
-              echo "Vault not ready yet, sleeping..."
-              sleep 5
+            max_attempts=30
+            attempt=0
+            while [ $attempt -lt $max_attempts ]; do
+              if vault status -format=json > /dev/null 2>&1; then
+                echo "✅ Vault is ready!"
+                break
+              else
+                echo "Vault not ready yet (attempt $((++attempt))/$max_attempts), sleeping..."
+                sleep 5
+              fi
             done
-            
-            echo "✅ Vault is ready!"
-            
+
+            if [ $attempt -eq $max_attempts ]; then
+              echo "❌ Vault failed to become ready after $max_attempts attempts"
+              exit 1
+            fi
+
             echo "🔐 Logging in to Vault..."
             export VAULT_ADDR='http://127.0.0.1:8200'
             export VAULT_TOKEN=${VAULT_TOKEN}
-            
+
             echo "📝 Writing secrets from ConfigMap..."
             for file in /vault/data/*; do
               if [ -f "$file" ]; then
                 key=$(basename $file)
                 value=$(cat $file)
                 echo "Setting $key = $value"
-                vault kv put secret/app-config $key="$value"
+                vault kv put secret/app-config $key="$value" || {
+                  echo "⚠️ Failed to write $key, continuing..."
+                }
               fi
             done
-            
+
             echo "✅ Vault initialization complete."
             touch /tmp/vault-initialized
             echo "🚩 Flag file created: /tmp/vault-initialized"
-          
+
+            # Держим контейнер живым, чтобы pod не перезапускался
             tail -f /dev/null
         env:
         - name: VAULT_TOKEN

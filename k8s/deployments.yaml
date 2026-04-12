@@ -25,7 +25,7 @@ spec:
               key: VAULT_TOKEN
         - name: VAULT_ADDR
           value: "http://127.0.0.1:8200"
-        command: ["server", "-dev"]
+        args: ["server", "-dev"]
         readinessProbe:
           exec:
             command: ["sh", "-c", "test -f /tmp/vault-initialized"]

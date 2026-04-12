@@ -12,38 +12,6 @@ spec:
       labels:
         app: vault
     spec:
-      initContainers:
-      - name: vault-init-secrets
-        image: hashicorp/vault:1.19
-        command: ['sh', '-c']
-        args:
-          - |
-            echo "Waiting for Vault to be ready..."
-            until vault status -format=json; do sleep 2; done
-            
-            echo "Logging in to Vault..."
-            export VAULT_ADDR='http://127.0.0.1:8200'
-            export VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID}
-            
-            echo "Writing secrets from ConfigMap..."
-            
-            for file in /vault/data/*; do
-              key=$(basename $file)
-              value=$(cat $file)
-              echo "Setting $key = $value"
-              vault kv put secret/currency-converter-bot $key="$value"
-            done
-            
-            echo "Vault initialization complete."
-        env:
-        - name: VAULT_DEV_ROOT_TOKEN_ID
-          valueFrom:
-            secretKeyRef:
-              name: app-secrets
-              key: VAULT_TOKEN
-        volumeMounts:
-        - name: vault-data-volume
-          mountPath: /vault/data
       containers:
       - name: vault
         image: hashicorp/vault:1.19
@@ -60,13 +28,63 @@ spec:
         command: ["server", "-dev"]
         readinessProbe:
           exec:
-            command: ["vault", "status", "-format=json"]
+            command: ["sh", "-c", "test -f /tmp/vault-initialized"]
           initialDelaySeconds: 5
           periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: shared-tmp
+          mountPath: /tmp
+      - name: vault-init-sidecar
+        image: hashicorp/vault:1.19
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "⏳ Waiting for Vault to be ready..."
+            until curl -s http://127.0.0.1:8200/v1/sys/health; do
+              echo "Vault not ready yet, sleeping..."
+              sleep 5
+            done
+            
+            echo "✅ Vault is ready!"
+            
+            echo "🔐 Logging in to Vault..."
+            export VAULT_ADDR='http://127.0.0.1:8200'
+            export VAULT_TOKEN=${VAULT_TOKEN}
+            
+            echo "📝 Writing secrets from ConfigMap..."
+            for file in /vault/data/*; do
+              if [ -f "$file" ]; then
+                key=$(basename $file)
+                value=$(cat $file)
+                echo "Setting $key = $value"
+                vault kv put secret/app-config $key="$value"
+              fi
+            done
+            
+            echo "✅ Vault initialization complete."
+            touch /tmp/vault-initialized
+            echo "🚩 Flag file created: /tmp/vault-initialized"
+          
+            tail -f /dev/null
+        env:
+        - name: VAULT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: VAULT_TOKEN
+        volumeMounts:
+        - name: vault-data-volume
+          mountPath: /vault/data
+        - name: shared-tmp
+          mountPath: /tmp
       volumes:
       - name: vault-data-volume
         configMap:
           name: vault-initial-data
+      - name: shared-tmp
+        emptyDir: {}
 ---
 apiVersion: apps/v1
 kind: Deployment

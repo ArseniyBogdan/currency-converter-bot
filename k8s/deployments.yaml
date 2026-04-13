@@ -205,6 +205,21 @@ spec:
       labels:
         app: app
     spec:
+      initContainers:
+      # 1. Ждем MongoDB
+      - name: wait-for-mongo
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z mongo-service 27017; do echo waiting for mongo; sleep 2; done;']
+      
+      # 2. Ждем RabbitMQ
+      - name: wait-for-rabbitmq
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z rabbitmq-service 5672; do echo waiting for rabbitmq; sleep 2; done;']
+
+      # 3. Ждем Vault
+      - name: wait-for-vault
+        image: busybox:1.28
+        command: ['sh', '-c', 'until nc -z vault-service 8200; do echo waiting for vault; sleep 2; done;']
       containers:
       - name: app
         image: <IMAGE_PLACEHOLDER> # Будет заменено Jenkins

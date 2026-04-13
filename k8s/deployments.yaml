@@ -136,9 +136,16 @@ spec:
               key: MONGO_ROOT_PASSWORD
         readinessProbe:
           exec:
-            command: ["mongosh", "--eval", "db.adminCommand('ping')"]
-          initialDelaySeconds: 10
-          periodSeconds: 5
+            command:
+            - mongosh
+            - --quiet
+            - --eval
+            - "try { db.adminCommand('ping').ok } catch(e) { quit(1) }"
+          initialDelaySeconds: 15 
+          periodSeconds: 10      
+          timeoutSeconds: 5      
+          successThreshold: 1   
+          failureThreshold: 3    
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -173,9 +180,16 @@ spec:
               key: RABBITMQ_DEFAULT_PASS
         readinessProbe:
           exec:
-            command: ["rabbitmq-diagnostics", "check_running"]
-          initialDelaySeconds: 20
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - check_port_connectivity
+          initialDelaySeconds: 20 # RabbitMQ на Java/Erlang стартует долго
           periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
 ---
 apiVersion: apps/v1
 kind: Deployment

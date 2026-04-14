@@ -35,14 +35,31 @@ pipeline {
         stage('Get Docker Image from Build Job') {
             steps {
                 script {
-                    if (params.OVERRIDE_IMAGE_NAME) {
-                        env.DOCKER_IMAGE = params.OVERRIDE_IMAGE_NAME
-                    } else {
-                        // Читаем файл, переданный оркестратором
-                        if (!fileExists(params.DOCKER_IMAGE_FILE)) {
-                            error("Файл с образом не передан!")
+                    if (!params.IMAGE_NAME) {
+                        printLog("IMAGE_NAME не указан, получаем из build job...", '📦', 36)
+                
+                        try {
+                            copyArtifacts projectName: BUILD_ARTIFACT_JOB,
+                                        filter: 'docker-image.txt',
+                                        target: '.',
+                                        selector: lastSuccessful(),
+                                        flatten: true
+                            
+                            env.DOCKER_IMAGE = readFile('docker-image.txt').trim()
+                            
+                            if (!env.DOCKER_IMAGE) {
+                                error("❌ Файл docker-image.txt пустой!")
+                            }
+                            
+                            printSuccess("Docker image из build: ${env.DOCKER_IMAGE}")
+                            
+                        } catch (Exception e) {
+                            printError("❌ Ошибка получения артефакта сборки: ${e.message}")
+                            throw e
                         }
-                        env.DOCKER_IMAGE = readFile(params.DOCKER_IMAGE_FILE).trim()
+                    } else {
+                        env.DOCKER_IMAGE = params.IMAGE_NAME
+                        printSuccess("✅ Docker image из параметра: ${env.DOCKER_IMAGE}")
                     }
                 }
             }
@@ -54,10 +71,20 @@ pipeline {
         stage('Get VM IP from Infra Job') {
             steps {
                 script {
-                    if (!fileExists(params.SERVER_IP_FILE)) {
-                        error("Файл с IP не передан!")
+                    printLog("Получаем Public IP из артефактов infra job...", '🖥️', 36)
+                    
+                    copyArtifacts projectName: 'deploy-infra', // Имя вашей джобы инфраструктуры
+                                filter: 'server_public_ip.txt',       // Фильтруем по новому файлу
+                                target: '.',
+                                selector: lastSuccessful(),
+                                flatten: true
+                    
+                    // Читаем содержимое файла напрямую
+                    env.VM_IP = readFile('server_public_ip.txt').trim()
+                    
+                    if (!env.VM_IP) {
+                        error("❌ Файл server_public_ip.txt пуст или не найден!")
                     }
-                    env.VM_IP = readFile(params.SERVER_IP_FILE).trim()
                     
                     printSuccess("✅ VM Public IP: ${env.VM_IP}")
                 }

@@ -89,43 +89,49 @@ pipeline {
                 script {
                     echo "📦 Запуск деплоя: ${DEPLOY_JOB_NAME}"
                     
-                    // Проверка наличия необходимых файлов
+                    // Дебаг: проверим значения переменных
+                    echo "DEBUG: LOCAL_IMAGE_FILE_PATH = '${env.LOCAL_IMAGE_FILE_PATH}'"
+                    echo "DEBUG: LOCAL_IP_FILE_PATH = '${env.LOCAL_IP_FILE_PATH}'"
+
+                    if (!env.LOCAL_IMAGE_FILE_PATH || env.LOCAL_IMAGE_FILE_PATH.trim().isEmpty()) {
+                        error("❌ Переменная LOCAL_IMAGE_FILE_PATH пуста!")
+                    }
+                    if (!env.LOCAL_IP_FILE_PATH || env.LOCAL_IP_FILE_PATH.trim().isEmpty()) {
+                        error("❌ Переменная LOCAL_IP_FILE_PATH пуста!")
+                    }
+
+                    // Проверка наличия файлов
                     if (!fileExists(env.LOCAL_IMAGE_FILE_PATH) && !params.CUSTOM_IMAGE_TAG) {
-                        error("❌ Нет файла с образом и не задан CUSTOM_IMAGE_TAG. Запустите этап Build.")
+                        error("❌ Нет файла с образом и не задан CUSTOM_IMAGE_TAG.")
                     }
                     if (!fileExists(env.LOCAL_IP_FILE_PATH)) {
-                        error("❌ Нет файла с IP. Запустите этап Infra.")
+                        error("❌ Нет файла с IP.")
                     }
 
-                    // Формируем параметры для передачи в downstream job
                     def deployParams = []
 
-                    // 1. Передаем файл с образом (если нет кастомного тега)
                     if (params.CUSTOM_IMAGE_TAG) {
-                        // Если пользователь задал тег вручную, передаем его строкой
-                        // Примечание: Ваша deploy-job должна поддерживать параметр OVERRIDE_IMAGE_NAME
                         deployParams << [$class: 'StringParameterValue', name: 'OVERRIDE_IMAGE_NAME', value: params.CUSTOM_IMAGE_TAG]
-                        // Также нужно передать пустой или фиктивный файл, если параметр FILE обязательный в Jenkins UI,
-                        // но лучше сделать параметр FILE опциональным в настройках джобы deploy-app.
-                        // Если файл обязателен, можно передать путь к любому существующему файлу, но логика джобы должна приоритизировать OVERRIDE_IMAGE_NAME
+                        // Если downstream job требует файл даже при наличии OVERRIDE_IMAGE_NAME, 
+                        // создай пустышку или передай любой существующий файл, но лучше сделай параметр опциональным там.
+                        // Для примера, если файл обязателен, можно передать сам скрипт пайплайна (он точно есть):
+                        // deployParams << [$class: 'FileParameterValue', file: new File('Jenkinsfile'), name: 'DOCKER_IMAGE_FILE'] 
                     } else {
-                        // Передаем скачанный файл
-                        deployParams << [$class: 'FileParameterValue', file: new File(env.LOCAL_IMAGE_FILE_PATH), name: 'DOCKER_IMAGE_FILE']
+                        // ВОТ ЗДЕСЬ ПРОИСХОДИТ ОШИБКА
+                        // Попробуем использовать абсолютный путь
+                        def imageFile = new File(env.LOCAL_IMAGE_FILE_PATH)
+                        deployParams << [$class: 'FileParameterValue', file: imageFile, name: 'DOCKER_IMAGE_FILE']
                     }
 
-                    // 2. Передаем файл с IP
-                    deployParams << [$class: 'FileParameterValue', file: new File(env.LOCAL_IP_FILE_PATH), name: 'SERVER_IP_FILE']
+                    // Аналогично для IP
+                    def ipFile = new File(env.LOCAL_IP_FILE_PATH)
+                    deployParams << [$class: 'FileParameterValue', file: ipFile, name: 'SERVER_IP_FILE']
 
-                    echo "📤 Передача параметров в деплой:"
-                    echo "   - Image Source: ${params.CUSTOM_IMAGE_TAG ? 'Custom Tag' : 'Artifact File'}"
-                    echo "   - IP Source: Artifact File"
-
-                    // Запуск джобы деплоя с переданными файлами
                     build job: DEPLOY_JOB_NAME, 
-                         propagate: true, 
-                         wait: true,
-                         parameters: deployParams
-                         
+                        propagate: true, 
+                        wait: true,
+                        parameters: deployParams
+                        
                     echo "✅ Деплой инициирован успешно."
                 }
             }

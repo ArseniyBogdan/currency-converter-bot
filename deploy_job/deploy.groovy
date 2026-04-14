@@ -8,20 +8,17 @@ pipeline {
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_REPO = 'arseniybogdan/currency-converter-bot'
         
+        // Имена джоб-источников
+        INFRA_ARTIFACT_JOB = 'deploy-infra'
+        BUILD_ARTIFACT_JOB = 'build'
+        
         // Пути на удаленной машине
         REMOTE_USER = 'ubuntu'
         APP_DIR = '/opt/currency-converter-bot'
     }
     
     parameters {
-        // --- НОВЫЕ ПАРАМЕТРЫ ДЛЯ ОРКЕСТРАТОРА (Строки) ---
-        string(name: 'IMAGE_TAG_STR', defaultValue: '', description: 'Docker image tag passed from orchestrator')
-        string(name: 'VM_IP_STR', defaultValue: '', description: 'VM IP address passed from orchestrator')
-        
-        // --- СТАРЫЕ ПАРАМЕТРЫ ДЛЯ РУЧНОГО ЗАПУСКА (Файлы/Строки) ---
-        string(name: 'OVERRIDE_IMAGE_NAME', defaultValue: '', description: 'Manual override for image name')
-        file(name: 'DOCKER_IMAGE_FILE', description: 'Legacy: File containing image name')
-        file(name: 'SERVER_IP_FILE', description: 'Legacy: File containing VM IP')
+        string(name: 'IMAGE_NAME', defaultValue: '', description: 'Docker image name (optional, если пусто - берётся из build job)')
     }
     
     stages {
@@ -33,74 +30,48 @@ pipeline {
         }
 
         // ========================================================================
-        // 📦 Получаем Docker Image (Умная логика приоритетов)
+        // 📦 Получаем Docker Image из Build Job
         // ========================================================================
-        stage('Get Docker Image') {
+        stage('Get Docker Image from Build Job') {
             steps {
                 script {
-                    def foundImage = ""
-                    
-                    // Приоритет 1: Ручное переопределение (самый высокий приоритет)
-                    if (params.OVERRIDE_IMAGE_NAME && params.OVERRIDE_IMAGE_NAME.trim().isNotEmpty()) {
-                        foundImage = params.OVERRIDE_IMAGE_NAME.trim()
-                        echo "ℹ️ [Priority 1] Используем OVERRIDE_IMAGE_NAME: ${foundImage}"
-                    } 
-                    // Приоритет 2: Строка от оркестратора (основной путь автоматизации)
-                    else if (params.IMAGE_TAG_STR && params.IMAGE_TAG_STR.trim().isNotEmpty()) {
-                        foundImage = params.IMAGE_TAG_STR.trim()
-                        echo "ℹ️ [Priority 2] Используем IMAGE_TAG_STR из оркестратора: ${foundImage}"
-                    } 
-                    // Приоритет 3: Legacy файл (для обратной совместимости)
-                    else if (params.DOCKER_IMAGE_FILE && fileExists(params.DOCKER_IMAGE_FILE)) {
-                        foundImage = readFile(params.DOCKER_IMAGE_FILE).trim()
-                        echo "ℹ️ [Priority 3] Используем legacy файл DOCKER_IMAGE_FILE: ${foundImage}"
-                    } 
-                    else {
-                        error("❌ Не удалось определить Docker Image! Передайте IMAGE_TAG_STR или заполните OVERRIDE_IMAGE_NAME.")
+                    if (params.OVERRIDE_IMAGE_NAME) {
+                        env.DOCKER_IMAGE = params.OVERRIDE_IMAGE_NAME
+                    } else {
+                        // Читаем файл, переданный оркестратором
+                        if (!fileExists(params.DOCKER_IMAGE_FILE)) {
+                            error("Файл с образом не передан!")
+                        }
+                        env.DOCKER_IMAGE = readFile(params.DOCKER_IMAGE_FILE).trim()
                     }
-                    
-                    env.DOCKER_IMAGE = foundImage
-                    echo "✅ Final Docker Image: ${env.DOCKER_IMAGE}"
                 }
             }
         }
 
         // ========================================================================
-        // 🖥️ Получаем VM IP (Умная логика приоритетов)
+        // 🖥️ Получаем VM IP из Infra Job (Terraform Output)
         // ========================================================================
-        stage('Get VM IP') {
+        stage('Get VM IP from Infra Job') {
             steps {
                 script {
-                    def foundIp = ""
-                    
-                    // Приоритет 1: Строка от оркестратора
-                    if (params.VM_IP_STR && params.VM_IP_STR.trim().isNotEmpty()) {
-                        foundIp = params.VM_IP_STR.trim()
-                        echo "ℹ️ [Priority 1] Используем VM_IP_STR из оркестратора: ${foundIp}"
-                    } 
-                    // Приоритет 2: Legacy файл
-                    else if (params.SERVER_IP_FILE && fileExists(params.SERVER_IP_FILE)) {
-                        foundIp = readFile(params.SERVER_IP_FILE).trim()
-                        echo "ℹ️ [Priority 2] Используем legacy файл SERVER_IP_FILE: ${foundIp}"
-                    } 
-                    else {
-                        error("❌ Не удалось определить VM IP! Передайте VM_IP_STR.")
+                    if (!fileExists(params.SERVER_IP_FILE)) {
+                        error("Файл с IP не передан!")
                     }
+                    env.VM_IP = readFile(params.SERVER_IP_FILE).trim()
                     
-                    env.VM_IP = foundIp
-                    printSuccess("✅ Final VM Public IP: ${env.VM_IP}")
+                    printSuccess("✅ VM Public IP: ${env.VM_IP}")
                 }
             }
         }
         
         // ========================================================================
-        // 🐳 Deploy to Yandex Cloud VM via SSH
+        // 🐳 Deploy to VM via SSH
         // ========================================================================
         stage('Deploy to Yandex Cloud VM') {
             steps {
                 script {
                     if (!env.VM_IP) {
-                        error("❌ Переменная VM_IP не установлена.")
+                        error("❌ Переменная VM_IP не установлена. Проверьте предыдущий шаг.")
                     }
 
                     sshagent(["${SSH_KEY_NAME}"]) {

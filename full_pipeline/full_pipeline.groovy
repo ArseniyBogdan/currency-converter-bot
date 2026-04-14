@@ -93,8 +93,7 @@ pipeline {
 
                     build job: DEPLOY_JOB_NAME, 
                         propagate: true, 
-                        wait: true,
-                        parameters: deployParams
+                        wait: true
                         
                     echo "✅ Деплой инициирован успешно."
                 }

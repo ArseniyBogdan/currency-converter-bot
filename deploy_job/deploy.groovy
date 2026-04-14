@@ -38,11 +38,19 @@ pipeline {
                     if (params.OVERRIDE_IMAGE_NAME) {
                         env.DOCKER_IMAGE = params.OVERRIDE_IMAGE_NAME
                     } else {
-                        // Читаем файл, переданный оркестратором
-                        if (!fileExists(params.DOCKER_IMAGE_FILE)) {
-                            error("Файл с образом не передан!")
+                        // Проверяем, что параметр передан и не пуст
+                        if (!params.DOCKER_IMAGE_FILE || params.DOCKER_IMAGE_FILE.trim().isEmpty()) {
+                            error("❌ Параметр DOCKER_IMAGE_FILE не передан или пуст!")
                         }
+
+                        if (!fileExists(params.DOCKER_IMAGE_FILE)) {
+                            error("❌ Файл с образом не найден: ${params.DOCKER_IMAGE_FILE}")
+                        }
+
                         env.DOCKER_IMAGE = readFile(params.DOCKER_IMAGE_FILE).trim()
+                        if (!env.DOCKER_IMAGE) {
+                            error("❌ Файл ${params.DOCKER_IMAGE_FILE} пуст!")
+                        }
                     }
                 }
             }
@@ -54,11 +62,19 @@ pipeline {
         stage('Get VM IP from Infra Job') {
             steps {
                 script {
-                    if (!fileExists(params.SERVER_IP_FILE)) {
-                        error("Файл с IP не передан!")
+                    if (!params.SERVER_IP_FILE || params.SERVER_IP_FILE.trim().isEmpty()) {
+                        error("❌ Параметр SERVER_IP_FILE не передан или пуст!")
                     }
+
+                    if (!fileExists(params.SERVER_IP_FILE)) {
+                        error("❌ Файл с IP не найден: ${params.SERVER_IP_FILE}")
+                    }
+
                     env.VM_IP = readFile(params.SERVER_IP_FILE).trim()
-                    
+                    if (!env.VM_IP) {
+                        error("❌ Файл ${params.SERVER_IP_FILE} пуст!")
+                    }
+
                     printSuccess("✅ VM Public IP: ${env.VM_IP}")
                 }
             }

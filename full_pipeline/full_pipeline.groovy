@@ -88,44 +88,8 @@ pipeline {
             steps {
                 script {
                     echo "📦 Запуск деплоя: ${DEPLOY_JOB_NAME}"
-                    
-                    // Дебаг: проверим значения переменных
-                    echo "DEBUG: LOCAL_IMAGE_FILE_PATH = '${env.LOCAL_IMAGE_FILE_PATH}'"
-                    echo "DEBUG: LOCAL_IP_FILE_PATH = '${env.LOCAL_IP_FILE_PATH}'"
-
-                    if (!env.LOCAL_IMAGE_FILE_PATH || env.LOCAL_IMAGE_FILE_PATH.trim().isEmpty()) {
-                        error("❌ Переменная LOCAL_IMAGE_FILE_PATH пуста!")
-                    }
-                    if (!env.LOCAL_IP_FILE_PATH || env.LOCAL_IP_FILE_PATH.trim().isEmpty()) {
-                        error("❌ Переменная LOCAL_IP_FILE_PATH пуста!")
-                    }
-
-                    // Проверка наличия файлов
-                    if (!fileExists(env.LOCAL_IMAGE_FILE_PATH) && !params.CUSTOM_IMAGE_TAG) {
-                        error("❌ Нет файла с образом и не задан CUSTOM_IMAGE_TAG.")
-                    }
-                    if (!fileExists(env.LOCAL_IP_FILE_PATH)) {
-                        error("❌ Нет файла с IP.")
-                    }
 
                     def deployParams = []
-
-                    if (params.CUSTOM_IMAGE_TAG) {
-                        deployParams << [$class: 'StringParameterValue', name: 'OVERRIDE_IMAGE_NAME', value: params.CUSTOM_IMAGE_TAG]
-                        // Если downstream job требует файл даже при наличии OVERRIDE_IMAGE_NAME, 
-                        // создай пустышку или передай любой существующий файл, но лучше сделай параметр опциональным там.
-                        // Для примера, если файл обязателен, можно передать сам скрипт пайплайна (он точно есть):
-                        // deployParams << [$class: 'FileParameterValue', file: new File('Jenkinsfile'), name: 'DOCKER_IMAGE_FILE'] 
-                    } else {
-                        // ВОТ ЗДЕСЬ ПРОИСХОДИТ ОШИБКА
-                        // Попробуем использовать абсолютный путь
-                        def imageFile = new File(env.LOCAL_IMAGE_FILE_PATH)
-                        deployParams << [$class: 'FileParameterValue', file: imageFile, name: 'DOCKER_IMAGE_FILE']
-                    }
-
-                    // Аналогично для IP
-                    def ipFile = new File(env.LOCAL_IP_FILE_PATH)
-                    deployParams << [$class: 'FileParameterValue', file: ipFile, name: 'SERVER_IP_FILE']
 
                     build job: DEPLOY_JOB_NAME, 
                         propagate: true, 
